@@ -37,7 +37,7 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.5 }} // Increased duration for smoother transitions
         className="w-full h-[400px]"
       >
         <ResponsiveContainer>
@@ -75,7 +75,8 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
               stroke={config.color}
               strokeWidth={2}
               dot={false}
-              animationDuration={300}
+              animationDuration={1000} // Increased animation duration
+              isAnimationActive={true}
             />
           </LineChart>
         </ResponsiveContainer>
