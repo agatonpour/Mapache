@@ -1,83 +1,98 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { io } from "socket.io-client";
 import { SensorCard } from "@/components/SensorCard";
 import { SensorGraph } from "@/components/SensorGraph";
 import { TimeframeSelector } from "@/components/TimeframeSelector";
-import {
-  generateMockData,
-  SENSOR_CONFIG,
-  type SensorData,
-  type SensorType,
-} from "@/lib/mock-data";
+import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
+import { useToast } from "@/components/ui/use-toast";
 
-const UPDATE_INTERVAL = 5000; // Update every 5 seconds instead of every second
-const DATA_POINTS = {
-  "3m": 36, // 3 minutes = 36 points at 5-second intervals
-  "1h": 720, // 1 hour = 720 points at 5-second intervals
-  "24h": 17280, // 24 hours
-  "1w": 120960, // 1 week
-  "1m": 518400, // 1 month
-  "1y": 6220800, // 1 year
-} as const;
+const UPDATE_INTERVAL = 5000;
+const BACKEND_URL = 'http://localhost:3001';
 
 export default function Index() {
+  const { toast } = useToast();
   const [selectedSensor, setSelectedSensor] = useState<SensorType>("temperature");
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const [sensorData, setSensorData] = useState<Record<SensorType, SensorData[]>>(
     Object.fromEntries(
-      Object.keys(SENSOR_CONFIG).map((type) => [
-        type,
-        generateMockData(type as SensorType, DATA_POINTS["3m"]),
-      ])
+      Object.keys(SENSOR_CONFIG).map((type) => [type, []])
     ) as Record<SensorType, SensorData[]>
   );
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const socket = io(BACKEND_URL);
+
+    socket.on('connect', () => {
+      toast({
+        title: "Connected to sensor",
+        description: "Receiving real-time data from the Arduino",
+      });
+    });
+
+    socket.on('connect_error', (error) => {
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to the sensor. Using mock data instead.",
+        variant: "destructive",
+      });
+    });
+
+    socket.on('sensorData', (reading) => {
       setSensorData((prev) => {
         const now = new Date();
+        const timeframeDurations = {
+          "3m": 3 * 60 * 1000,
+          "1h": 60 * 60 * 1000,
+          "24h": 24 * 60 * 60 * 1000,
+          "1w": 7 * 24 * 60 * 60 * 1000,
+          "1m": 30 * 24 * 60 * 60 * 1000,
+          "1y": 365 * 24 * 60 * 60 * 1000,
+        };
+        
+        const cutoffTime = now.getTime() - timeframeDurations[timeframe];
+
+        // Create new data points from the reading
+        const newData = {
+          aqi: { type: 'aqi' as SensorType, value: reading.aqi, timestamp: now },
+          tvoc: { type: 'tvoc' as SensorType, value: reading.tvoc, timestamp: now },
+          eco2: { type: 'eco2' as SensorType, value: reading.eco2, timestamp: now },
+          pressure: { type: 'pressure' as SensorType, value: reading.pressure, timestamp: now },
+          humidity: { type: 'humidity' as SensorType, value: reading.humidity, timestamp: now },
+          temperature: { type: 'temperature' as SensorType, value: reading.temperature, timestamp: now },
+        };
+
+        // Update each sensor's data array
         return Object.fromEntries(
           Object.entries(prev).map(([type, data]) => {
-            // Calculate the cutoff time based on the current timeframe
-            const timeframeDurations = {
-              "3m": 3 * 60 * 1000,
-              "1h": 60 * 60 * 1000,
-              "24h": 24 * 60 * 60 * 1000,
-              "1w": 7 * 24 * 60 * 60 * 1000,
-              "1m": 30 * 24 * 60 * 60 * 1000,
-              "1y": 365 * 24 * 60 * 60 * 1000,
-            };
-            
-            const cutoffTime = now.getTime() - timeframeDurations[timeframe];
-            
-            // Filter out data points older than the cutoff time
             const filteredData = data.filter(
               (point) => point.timestamp.getTime() > cutoffTime
             );
-
             return [
               type,
-              [
-                ...filteredData,
-                {
-                  timestamp: now,
-                  value: generateMockData(type as SensorType, 1)[0].value,
-                  type: type as SensorType,
-                },
-              ],
+              [...filteredData, newData[type as keyof typeof newData]],
             ];
           })
         ) as Record<SensorType, SensorData[]>;
       });
-    }, UPDATE_INTERVAL);
+    });
 
-    return () => clearInterval(interval);
-  }, [timeframe]); // Add timeframe as dependency to update filtering when timeframe changes
+    return () => {
+      socket.disconnect();
+    };
+  }, [timeframe, toast]);
 
   const latestData = Object.fromEntries(
-    Object.entries(sensorData).map(([type, data]) => [type, data[data.length - 1]])
+    Object.entries(sensorData).map(([type, data]) => [
+      type,
+      data[data.length - 1] || {
+        timestamp: new Date(),
+        value: 0,
+        type: type as SensorType,
+      },
+    ])
   ) as Record<SensorType, SensorData>;
 
   // Filter data for the selected timeframe
