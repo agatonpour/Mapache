@@ -12,8 +12,15 @@ import {
 } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 
-const INITIAL_DATA_POINTS = 180; // 3 minutes of data at 1 second intervals
-const UPDATE_INTERVAL = 1000; // 1 second
+const UPDATE_INTERVAL = 5000; // Update every 5 seconds instead of every second
+const DATA_POINTS = {
+  "3m": 36, // 3 minutes = 36 points at 5-second intervals
+  "1h": 720, // 1 hour = 720 points at 5-second intervals
+  "24h": 17280, // 24 hours
+  "1w": 120960, // 1 week
+  "1m": 518400, // 1 month
+  "1y": 6220800, // 1 year
+} as const;
 
 export default function Index() {
   const [selectedSensor, setSelectedSensor] = useState<SensorType>("temperature");
@@ -22,7 +29,7 @@ export default function Index() {
     Object.fromEntries(
       Object.keys(SENSOR_CONFIG).map((type) => [
         type,
-        generateMockData(type as SensorType, INITIAL_DATA_POINTS),
+        generateMockData(type as SensorType, DATA_POINTS["3m"]),
       ])
     ) as Record<SensorType, SensorData[]>
   );
@@ -32,27 +39,67 @@ export default function Index() {
       setSensorData((prev) => {
         const now = new Date();
         return Object.fromEntries(
-          Object.entries(prev).map(([type, data]) => [
-            type,
-            [
-              ...data.slice(-INITIAL_DATA_POINTS + 1),
-              {
-                timestamp: now,
-                value: generateMockData(type as SensorType, 1)[0].value,
-                type: type as SensorType,
-              },
-            ],
-          ])
+          Object.entries(prev).map(([type, data]) => {
+            // Calculate the cutoff time based on the current timeframe
+            const timeframeDurations = {
+              "3m": 3 * 60 * 1000,
+              "1h": 60 * 60 * 1000,
+              "24h": 24 * 60 * 60 * 1000,
+              "1w": 7 * 24 * 60 * 60 * 1000,
+              "1m": 30 * 24 * 60 * 60 * 1000,
+              "1y": 365 * 24 * 60 * 60 * 1000,
+            };
+            
+            const cutoffTime = now.getTime() - timeframeDurations[timeframe];
+            
+            // Filter out data points older than the cutoff time
+            const filteredData = data.filter(
+              (point) => point.timestamp.getTime() > cutoffTime
+            );
+
+            return [
+              type,
+              [
+                ...filteredData,
+                {
+                  timestamp: now,
+                  value: generateMockData(type as SensorType, 1)[0].value,
+                  type: type as SensorType,
+                },
+              ],
+            ];
+          })
         ) as Record<SensorType, SensorData[]>;
       });
     }, UPDATE_INTERVAL);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [timeframe]); // Add timeframe as dependency to update filtering when timeframe changes
 
   const latestData = Object.fromEntries(
     Object.entries(sensorData).map(([type, data]) => [type, data[data.length - 1]])
   ) as Record<SensorType, SensorData>;
+
+  // Filter data for the selected timeframe
+  const filteredData = Object.fromEntries(
+    Object.entries(sensorData).map(([type, data]) => {
+      const now = new Date();
+      const timeframeDurations = {
+        "3m": 3 * 60 * 1000,
+        "1h": 60 * 60 * 1000,
+        "24h": 24 * 60 * 60 * 1000,
+        "1w": 7 * 24 * 60 * 60 * 1000,
+        "1m": 30 * 24 * 60 * 60 * 1000,
+        "1y": 365 * 24 * 60 * 60 * 1000,
+      };
+      
+      const cutoffTime = now.getTime() - timeframeDurations[timeframe];
+      return [
+        type,
+        data.filter((point) => point.timestamp.getTime() > cutoffTime),
+      ];
+    })
+  ) as Record<SensorType, SensorData[]>;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -94,7 +141,7 @@ export default function Index() {
 
             <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl p-4 shadow-sm">
               <SensorGraph
-                data={sensorData[selectedSensor]}
+                data={filteredData[selectedSensor]}
                 type={selectedSensor}
               />
             </div>
