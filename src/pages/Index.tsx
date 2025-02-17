@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { io } from "socket.io-client";
 import { SensorCard } from "@/components/SensorCard";
@@ -7,7 +7,7 @@ import { SensorGraph } from "@/components/SensorGraph";
 import { TimeframeSelector } from "@/components/TimeframeSelector";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 const UPDATE_INTERVAL = 5000;
 const BACKEND_URL = 'http://localhost:3001';
@@ -16,6 +16,7 @@ export default function Index() {
   const { toast } = useToast();
   const [selectedSensor, setSelectedSensor] = useState<SensorType>("temperature");
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
+  const errorToastShown = useRef(false);
   const [sensorData, setSensorData] = useState<Record<SensorType, SensorData[]>>(
     Object.fromEntries(
       Object.keys(SENSOR_CONFIG).map((type) => [type, []])
@@ -26,6 +27,7 @@ export default function Index() {
     const socket = io(BACKEND_URL);
 
     socket.on('connect', () => {
+      errorToastShown.current = false;
       toast({
         title: "Connected to sensor",
         description: "Receiving real-time data from the Arduino",
@@ -33,11 +35,14 @@ export default function Index() {
     });
 
     socket.on('connect_error', (error) => {
-      toast({
-        title: "Connection Error",
-        description: "Failed to connect to the sensor. Using mock data instead.",
-        variant: "destructive",
-      });
+      if (!errorToastShown.current) {
+        errorToastShown.current = true;
+        toast({
+          title: "Error",
+          description: "Failed to collect sensor data",
+          variant: "destructive",
+        });
+      }
     });
 
     socket.on('sensorData', (reading) => {
