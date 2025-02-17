@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import type {
@@ -156,7 +157,9 @@ function toast({ ...props }: Toast) {
       id,
       open: true,
       onOpenChange: (open) => {
-        if (!open) dismiss()
+        if (!open && props.variant !== "destructive") {
+          dismiss()
+        }
       },
     },
   })
