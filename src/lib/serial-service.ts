@@ -17,7 +17,7 @@ class SerialService {
   private parser: ReadlineParser | null = null;
   private subscribers: Set<(data: SensorReading) => void> = new Set();
 
-  async connect(portPath: string = '/dev/ttyUSB0') {
+  async connect(portPath: string = '/dev/cu.usbserial-0001') {
     try {
       this.port = new SerialPort({
         path: portPath,
