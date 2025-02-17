@@ -1,6 +1,7 @@
 
 import { motion } from "framer-motion";
 import { SENSOR_CONFIG, type SensorType } from "@/lib/mock-data";
+import { cn } from "@/lib/utils";
 
 interface SensorCardProps {
   type: SensorType;
