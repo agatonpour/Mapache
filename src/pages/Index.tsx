@@ -8,6 +8,7 @@ import { TimeframeSelector } from "@/components/TimeframeSelector";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import RaccoonbotLogo from '../../Raccoonbot-Logo.png';
 
 const UPDATE_INTERVAL = 5000;
 const BACKEND_URL = 'http://localhost:3001';
@@ -23,15 +24,22 @@ export default function Index() {
     ) as Record<SensorType, SensorData[]>
   );
 
+
+  const [sensorConnected, setSensorConnected] = useState(false);
   useEffect(() => {
     const socket = io(BACKEND_URL);
 
     socket.on('connect', () => {
       errorToastShown.current = false;
-      toast({
-        title: "Connected to sensor",
-        description: "Receiving real-time data from the Arduino",
-      });
+
+      if (!sensorConnected) {
+        toast({
+          title: "Connected to sensor",
+          description: "Receiving real-time data from the Raccoonbot",
+        });
+  
+        setSensorConnected(true); // Mark as connected so it doesn't show again
+      }
     });
 
     socket.on('connect_error', (error) => {
@@ -87,7 +95,7 @@ export default function Index() {
     return () => {
       socket.disconnect();
     };
-  }, [timeframe, toast]);
+  }, [toast]);
 
   const latestData = Object.fromEntries(
     Object.entries(sensorData).map(([type, data]) => [
@@ -130,11 +138,12 @@ export default function Index() {
           className="space-y-8"
         >
           <div className="text-center space-y-2">
+            <img src={RaccoonbotLogo} alt="Raccoonbot Logo" className="mx-auto" style={{ width: '250px', height: 'auto' }}/>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              Raccoonbot Interface
+              Mapache: The Raccoonbot Interface App
             </h1>
             <p className="text-gray-500">
-              Real-time environmental sensor monitoring
+              Real-time Environmental Monitoring
             </p>
           </div>
 
