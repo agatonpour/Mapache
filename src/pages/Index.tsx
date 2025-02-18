@@ -129,6 +129,33 @@ export default function Index() {
     })
   ) as Record<SensorType, SensorData[]>;
 
+  const handleDownloadData = () => {
+    const selectedData = filteredData[selectedSensor];
+  
+    if (!selectedData || selectedData.length === 0) {
+      alert("No data available for the selected timeframe.");
+      return;
+    }
+  
+    
+    let csvContent = "Date,Time,Value\n"; 
+    selectedData.forEach(point => {
+      const date = point.timestamp.toLocaleDateString()
+      const time = point.timestamp.toLocaleTimeString(); 
+      csvContent += `${date},${time},${point.value}\n`;
+    });
+  
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+  
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedSensor}_data_${timeframe}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="container max-w-7xl mx-auto px-4 py-8">
@@ -165,6 +192,14 @@ export default function Index() {
               <div className="text-lg font-medium text-gray-900">
                 {SENSOR_CONFIG[selectedSensor].label} History
               </div>
+              {/* Add this Button for Downloading */}
+              <button 
+                onClick={handleDownloadData} 
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+              >
+              Download Data
+              </button>
+
               <TimeframeSelector value={timeframe} onChange={setTimeframe} />
             </div>
 
