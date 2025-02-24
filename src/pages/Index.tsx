@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { io } from "socket.io-client";
@@ -10,7 +9,6 @@ import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import RaccoonbotLogo from '../../Raccoonbot-Logo.png';
 
-const UPDATE_INTERVAL = 5000;
 const BACKEND_URL = 'http://localhost:3001';
 
 export default function Index() {
@@ -18,31 +16,33 @@ export default function Index() {
   const [selectedSensor, setSelectedSensor] = useState<SensorType>("temperature");
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const errorToastShown = useRef(false);
-  const [sensorData, setSensorData] = useState<Record<SensorType, SensorData[]>>(
-    Object.fromEntries(
-      Object.keys(SENSOR_CONFIG).map((type) => [type, []])
-    ) as Record<SensorType, SensorData[]>
+  const [sensorConnected, setSensorConnected] = useState(false);
+  const [graphKey, setGraphKey] = useState(0); // Used to trigger a refresh when timeframe changes
+
+  // Store all sensor data since the app started
+  const allSensorData = useRef<Record<SensorType, SensorData[]>>(
+    Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
   );
 
+  const [filteredSensorData, setFilteredSensorData] = useState<Record<SensorType, SensorData[]>>(
+    Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
+  );
 
-  const [sensorConnected, setSensorConnected] = useState(false);
   useEffect(() => {
     const socket = io(BACKEND_URL);
 
     socket.on('connect', () => {
       errorToastShown.current = false;
-
       if (!sensorConnected) {
         toast({
           title: "Connected to sensor",
           description: "Receiving real-time data from the Raccoonbot",
         });
-  
-        setSensorConnected(true); // Mark as connected so it doesn't show again
+        setSensorConnected(true);
       }
     });
 
-    socket.on('connect_error', (error) => {
+    socket.on('connect_error', () => {
       if (!errorToastShown.current) {
         errorToastShown.current = true;
         toast({
@@ -53,66 +53,11 @@ export default function Index() {
       }
     });
 
-    socket.on('sensorData', (reading) => {
-      setSensorData((prev) => {
-        const now = new Date();
-        const timeframeDurations = {
-          "3m": 3 * 60 * 1000,
-          "1h": 60 * 60 * 1000,
-          "24h": 24 * 60 * 60 * 1000,
-          "1w": 7 * 24 * 60 * 60 * 1000,
-          "1m": 30 * 24 * 60 * 60 * 1000,
-          "1y": 365 * 24 * 60 * 60 * 1000,
-        };
-        
-        const cutoffTime = now.getTime() - timeframeDurations[timeframe];
-
-        // Create new data points from the reading
-        const newData = {
-          aqi: { type: 'aqi' as SensorType, value: reading.aqi, timestamp: now },
-          tvoc: { type: 'tvoc' as SensorType, value: reading.tvoc, timestamp: now },
-          eco2: { type: 'eco2' as SensorType, value: reading.eco2, timestamp: now },
-          pressure: { type: 'pressure' as SensorType, value: reading.pressure, timestamp: now },
-          humidity: { type: 'humidity' as SensorType, value: reading.humidity, timestamp: now },
-          temperature: { type: 'temperature' as SensorType, value: reading.temperature, timestamp: now },
-        };
-
-        // Update each sensor's data array
-        return Object.fromEntries(
-          Object.entries(prev).map(([type, data]) => {
-            const filteredData = data.filter(
-              (point) => point.timestamp.getTime() > cutoffTime
-            );
-            return [
-              type,
-              [...filteredData, newData[type as keyof typeof newData]],
-            ];
-          })
-        ) as Record<SensorType, SensorData[]>;
-      });
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, [toast]);
-
-  const latestData = Object.fromEntries(
-    Object.entries(sensorData).map(([type, data]) => [
-      type,
-      data[data.length - 1] || {
-        timestamp: new Date(),
-        value: 0,
-        type: type as SensorType,
-      },
-    ])
-  ) as Record<SensorType, SensorData>;
-
-  // Filter data for the selected timeframe
-  const filteredData = Object.fromEntries(
-    Object.entries(sensorData).map(([type, data]) => {
+    socket.on("sensorData", (reading) => {
       const now = new Date();
-      const timeframeDurations = {
+    
+      // Define timeframe durations
+      const timeframeDurations: Record<Timeframe, number> = {
         "3m": 3 * 60 * 1000,
         "1h": 60 * 60 * 1000,
         "24h": 24 * 60 * 60 * 1000,
@@ -120,34 +65,123 @@ export default function Index() {
         "1m": 30 * 24 * 60 * 60 * 1000,
         "1y": 365 * 24 * 60 * 60 * 1000,
       };
-      
-      const cutoffTime = now.getTime() - timeframeDurations[timeframe];
-      return [
-        type,
-        data.filter((point) => point.timestamp.getTime() > cutoffTime),
-      ];
-    })
-  ) as Record<SensorType, SensorData[]>;
+      const cutoffTime = now.getTime() - timeframeDurations[timeframe]; // ✅ Now defined!
+    
+      // New data point
+      const newData: Partial<Record<SensorType, SensorData>> = {
+        aqi: { type: "aqi", value: reading.aqi, timestamp: now },
+        tvoc: { type: "tvoc", value: reading.tvoc, timestamp: now },
+        eco2: { type: "eco2", value: reading.eco2, timestamp: now },
+        pressure: { type: "pressure", value: reading.pressure, timestamp: now },
+        humidity: { type: "humidity", value: reading.humidity, timestamp: now },
+        temperature: { type: "temperature", value: reading.temperature, timestamp: now },
+      };
+    
+      // Store new data in `allSensorData`
+      Object.entries(newData).forEach(([type, dataPoint]) => {
+        const typedType = type as SensorType;
+        if (!allSensorData.current[typedType]) {
+          allSensorData.current[typedType] = []; // Ensure it's initialized
+        }
+        allSensorData.current[typedType].push(dataPoint); // Append new data
+      });
+    
+      // ✅ **Update the six sensor boxes immediately without clearing them**
+      setFilteredSensorData((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+          Object.keys(SENSOR_CONFIG).map((type) => [
+            type,
+            (allSensorData.current[type as SensorType] || []).filter(
+              (point) => point.timestamp.getTime() > cutoffTime
+            ),
+          ])
+        ),
+      }));
+    
+      if (selectedSensor) {
+        setFilteredSensorData((prev) => ({
+          ...prev,
+          [selectedSensor]: (allSensorData.current[selectedSensor] || []).filter(
+            (point) => point.timestamp.getTime() > cutoffTime
+          ),
+        }));
+      }
+    });
+    
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [toast]);
+
+  // Function to update graph data when timeframe changes
+  const updateGraphData = () => {
+    const now = new Date();
+    const timeframeDurations: Record<Timeframe, number> = {
+      "3m": 3 * 60 * 1000,
+      "1h": 60 * 60 * 1000,
+      "24h": 24 * 60 * 60 * 1000,
+      "1w": 7 * 24 * 60 * 60 * 1000,
+      "1m": 30 * 24 * 60 * 60 * 1000,
+      "1y": 365 * 24 * 60 * 60 * 1000,
+    };
+  
+    const cutoffTime = now.getTime() - timeframeDurations[timeframe];
+  
+    setFilteredSensorData((prev) => ({
+      ...prev,
+      ...Object.fromEntries(
+        Object.keys(SENSOR_CONFIG).map((type) => [
+          type,
+          (allSensorData.current[type as SensorType] || []).filter(
+            (point) => point.timestamp.getTime() > cutoffTime
+          ),
+        ])
+      ),
+    }));
+  
+    setGraphKey((prev) => prev + 1); // Ensure the graph visually resets
+  };
+
+  // Reset the graph temporarily when switching timeframes
+  useEffect(() => {
+    setGraphKey((prev) => prev + 1); // Trigger graph refresh only
+    setTimeout(updateGraphData, 300); // Small delay before repopulating graph
+  }, [timeframe]);
+
+  useEffect(() => {
+    setFilteredSensorData((prev) => ({
+      ...prev,
+      [selectedSensor]: [], // Temporarily clear graph for effect
+    }));
+  
+    setTimeout(() => {
+      updateGraphData();
+    }, 200); // Short delay before repopulating
+  }, [timeframe]);
 
   const handleDownloadData = () => {
-    const selectedData = filteredData[selectedSensor];
+    const selectedData = filteredSensorData[selectedSensor];
   
     if (!selectedData || selectedData.length === 0) {
       alert("No data available for the selected timeframe.");
       return;
     }
   
-    
-    let csvContent = "Date,Time,Value\n"; 
-    selectedData.forEach(point => {
-      const date = point.timestamp.toLocaleDateString()
-      const time = point.timestamp.toLocaleTimeString(); 
+    // Format CSV with date, time, and value
+    let csvContent = "Date,Time,Value\n";
+    selectedData.forEach((point) => {
+      const date = point.timestamp.toLocaleDateString();
+      const time = point.timestamp.toLocaleTimeString();
       csvContent += `${date},${time},${point.value}\n`;
     });
   
+    // Create downloadable CSV file
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
   
+    // Create a temporary link and trigger download
     const a = document.createElement("a");
     a.href = url;
     a.download = `${selectedSensor}_data_${timeframe}.csv`;
@@ -179,35 +213,34 @@ export default function Index() {
               <SensorCard
                 key={type}
                 type={type as SensorType}
-                value={latestData[type as SensorType].value}
-                timestamp={latestData[type as SensorType].timestamp}
+                value={filteredSensorData[type as SensorType]?.at(-1)?.value || 0}
+                timestamp={filteredSensorData[type as SensorType]?.at(-1)?.timestamp || new Date()}
                 onClick={() => setSelectedSensor(type as SensorType)}
                 isSelected={selectedSensor === type}
               />
             ))}
           </div>
 
+
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="text-lg font-medium text-gray-900">
                 {SENSOR_CONFIG[selectedSensor].label} History
               </div>
-              {/* Add this Button for Downloading */}
-              <button 
-                onClick={handleDownloadData} 
-                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-              >
-              Download Data
-              </button>
-
+              <div className="flex justify-end">
+                <button 
+                  onClick={handleDownloadData} 
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                >
+                  Download Data
+                </button>
+              </div>
+                            
               <TimeframeSelector value={timeframe} onChange={setTimeframe} />
             </div>
 
             <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl p-4 shadow-sm">
-              <SensorGraph
-                data={filteredData[selectedSensor]}
-                type={selectedSensor}
-              />
+              <SensorGraph key={graphKey} data={filteredSensorData[selectedSensor]} type={selectedSensor} />
             </div>
           </div>
         </motion.div>
