@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { io } from "socket.io-client";
@@ -17,7 +18,7 @@ export default function Index() {
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const errorToastShown = useRef(false);
   const [sensorConnected, setSensorConnected] = useState(false);
-  const [graphKey, setGraphKey] = useState(0); // Used to trigger a refresh when timeframe changes
+  const [graphKey, setGraphKey] = useState(0);
 
   // Store all sensor data since the app started
   const allSensorData = useRef<Record<SensorType, SensorData[]>>(
@@ -27,6 +28,21 @@ export default function Index() {
   const [filteredSensorData, setFilteredSensorData] = useState<Record<SensorType, SensorData[]>>(
     Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
   );
+
+  // Function to filter data based on timeframe
+  const filterDataByTimeframe = (data: SensorData[], selectedTimeframe: Timeframe) => {
+    const now = new Date();
+    const timeframeDurations: Record<Timeframe, number> = {
+      "3m": 3 * 60 * 1000,
+      "1h": 60 * 60 * 1000,
+      "24h": 24 * 60 * 60 * 1000,
+      "1w": 7 * 24 * 60 * 60 * 1000,
+      "1m": 30 * 24 * 60 * 60 * 1000,
+      "1y": 365 * 24 * 60 * 60 * 1000,
+    };
+    const cutoffTime = now.getTime() - timeframeDurations[selectedTimeframe];
+    return data.filter((point) => point.timestamp.getTime() > cutoffTime);
+  };
 
   useEffect(() => {
     const socket = io(BACKEND_URL);
@@ -56,17 +72,6 @@ export default function Index() {
     socket.on("sensorData", (reading) => {
       const now = new Date();
     
-      // Define timeframe durations
-      const timeframeDurations: Record<Timeframe, number> = {
-        "3m": 3 * 60 * 1000,
-        "1h": 60 * 60 * 1000,
-        "24h": 24 * 60 * 60 * 1000,
-        "1w": 7 * 24 * 60 * 60 * 1000,
-        "1m": 30 * 24 * 60 * 60 * 1000,
-        "1y": 365 * 24 * 60 * 60 * 1000,
-      };
-      const cutoffTime = now.getTime() - timeframeDurations[timeframe]; // ✅ Now defined!
-    
       // New data point
       const newData: Partial<Record<SensorType, SensorData>> = {
         aqi: { type: "aqi", value: reading.aqi, timestamp: now },
@@ -77,88 +82,50 @@ export default function Index() {
         temperature: { type: "temperature", value: reading.temperature, timestamp: now },
       };
     
-      // Store new data in `allSensorData`
+      // Store new data in allSensorData
       Object.entries(newData).forEach(([type, dataPoint]) => {
         const typedType = type as SensorType;
         if (!allSensorData.current[typedType]) {
-          allSensorData.current[typedType] = []; // Ensure it's initialized
+          allSensorData.current[typedType] = [];
         }
-        allSensorData.current[typedType].push(dataPoint); // Append new data
+        allSensorData.current[typedType].push(dataPoint);
       });
     
-      // ✅ **Update the six sensor boxes immediately without clearing them**
+      // Update filtered data for all sensors based on current timeframe
       setFilteredSensorData((prev) => ({
         ...prev,
         ...Object.fromEntries(
           Object.keys(SENSOR_CONFIG).map((type) => [
             type,
-            (allSensorData.current[type as SensorType] || []).filter(
-              (point) => point.timestamp.getTime() > cutoffTime
-            ),
+            filterDataByTimeframe(allSensorData.current[type as SensorType] || [], timeframe)
           ])
         ),
       }));
-    
-      if (selectedSensor) {
-        setFilteredSensorData((prev) => ({
-          ...prev,
-          [selectedSensor]: (allSensorData.current[selectedSensor] || []).filter(
-            (point) => point.timestamp.getTime() > cutoffTime
-          ),
-        }));
-      }
     });
-    
 
     return () => {
       socket.disconnect();
     };
-  }, [toast]);
+  }, [toast, timeframe]); // Added timeframe dependency
 
   // Function to update graph data when timeframe changes
   const updateGraphData = () => {
-    const now = new Date();
-    const timeframeDurations: Record<Timeframe, number> = {
-      "3m": 3 * 60 * 1000,
-      "1h": 60 * 60 * 1000,
-      "24h": 24 * 60 * 60 * 1000,
-      "1w": 7 * 24 * 60 * 60 * 1000,
-      "1m": 30 * 24 * 60 * 60 * 1000,
-      "1y": 365 * 24 * 60 * 60 * 1000,
-    };
-  
-    const cutoffTime = now.getTime() - timeframeDurations[timeframe];
-  
     setFilteredSensorData((prev) => ({
       ...prev,
       ...Object.fromEntries(
         Object.keys(SENSOR_CONFIG).map((type) => [
           type,
-          (allSensorData.current[type as SensorType] || []).filter(
-            (point) => point.timestamp.getTime() > cutoffTime
-          ),
+          filterDataByTimeframe(allSensorData.current[type as SensorType] || [], timeframe)
         ])
       ),
     }));
-  
-    setGraphKey((prev) => prev + 1); // Ensure the graph visually resets
+    setGraphKey((prev) => prev + 1);
   };
 
   // Reset the graph temporarily when switching timeframes
   useEffect(() => {
-    setGraphKey((prev) => prev + 1); // Trigger graph refresh only
-    setTimeout(updateGraphData, 300); // Small delay before repopulating graph
-  }, [timeframe]);
-
-  useEffect(() => {
-    setFilteredSensorData((prev) => ({
-      ...prev,
-      [selectedSensor]: [], // Temporarily clear graph for effect
-    }));
-  
-    setTimeout(() => {
-      updateGraphData();
-    }, 200); // Short delay before repopulating
+    setGraphKey((prev) => prev + 1);
+    setTimeout(updateGraphData, 300);
   }, [timeframe]);
 
   const handleDownloadData = () => {
@@ -169,7 +136,6 @@ export default function Index() {
       return;
     }
   
-    // Format CSV with date, time, and value
     let csvContent = "Date,Time,Value\n";
     selectedData.forEach((point) => {
       const date = point.timestamp.toLocaleDateString();
@@ -177,11 +143,9 @@ export default function Index() {
       csvContent += `${date},${time},${point.value}\n`;
     });
   
-    // Create downloadable CSV file
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
   
-    // Create a temporary link and trigger download
     const a = document.createElement("a");
     a.href = url;
     a.download = `${selectedSensor}_data_${timeframe}.csv`;
@@ -221,7 +185,6 @@ export default function Index() {
             ))}
           </div>
 
-
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div className="text-lg font-medium text-gray-900">
@@ -235,7 +198,6 @@ export default function Index() {
                   Download Data
                 </button>
               </div>
-                            
               <TimeframeSelector value={timeframe} onChange={setTimeframe} />
             </div>
 
