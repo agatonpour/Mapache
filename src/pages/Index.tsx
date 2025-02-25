@@ -18,7 +18,6 @@ export default function Index() {
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const errorToastShown = useRef(false);
   const [sensorConnected, setSensorConnected] = useState(false);
-  const [graphKey, setGraphKey] = useState(0);
 
   // Store all sensor data since the app started
   const allSensorData = useRef<Record<SensorType, SensorData[]>>(
@@ -106,7 +105,7 @@ export default function Index() {
     return () => {
       socket.disconnect();
     };
-  }, [toast, timeframe]); // Added timeframe dependency
+  }, [toast, timeframe]);
 
   // Function to update graph data when timeframe changes
   const updateGraphData = () => {
@@ -119,13 +118,11 @@ export default function Index() {
         ])
       ),
     }));
-    setGraphKey((prev) => prev + 1);
   };
 
-  // Reset the graph temporarily when switching timeframes
+  // Update the data immediately when timeframe changes
   useEffect(() => {
-    setGraphKey((prev) => prev + 1);
-    setTimeout(updateGraphData, 300);
+    updateGraphData();
   }, [timeframe]);
 
   const handleDownloadData = () => {
@@ -136,7 +133,9 @@ export default function Index() {
       return;
     }
   
-    let csvContent = "Date,Time,Value\n";
+    // Include the unit in the Value column header
+    const unit = SENSOR_CONFIG[selectedSensor].unit;
+    let csvContent = `Date,Time,Value (${unit})\n`;
     selectedData.forEach((point) => {
       const date = point.timestamp.toLocaleDateString();
       const time = point.timestamp.toLocaleTimeString();
@@ -202,7 +201,7 @@ export default function Index() {
             </div>
 
             <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl p-4 shadow-sm">
-              <SensorGraph key={graphKey} data={filteredSensorData[selectedSensor]} type={selectedSensor} />
+              <SensorGraph data={filteredSensorData[selectedSensor]} type={selectedSensor} />
             </div>
           </div>
         </motion.div>
