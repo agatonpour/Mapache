@@ -25,10 +25,14 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
     () =>
       data.map((item) => ({
         timestamp: formatDate(item.timestamp),
-        value: item.value,
+        value: type === 'pressure' ? item.value / 100 : item.value, // Convert pressure to hPa
       })),
-    [data]
+    [data, type]
   );
+
+  const minValue = Math.min(...data.map(item => type === 'pressure' ? item.value / 100 : item.value));
+  const maxValue = Math.max(...data.map(item => type === 'pressure' ? item.value / 100 : item.value));
+  const padding = (maxValue - minValue) * 0.1; // Add 10% padding to min/max
 
   return (
     <AnimatePresence mode="wait">
@@ -37,7 +41,7 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        transition={{ duration: 0.5 }} // Increased duration for smoother transitions
+        transition={{ duration: 0.5 }}
         className="w-full h-[400px]"
       >
         <ResponsiveContainer>
@@ -55,7 +59,10 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              domain={[config.min, config.max]}
+              domain={[
+                Math.max(config.min, minValue - padding),
+                Math.min(config.max, maxValue + padding)
+              ]}
               tickFormatter={(value) => config.formatValue(value)}
             />
             <Tooltip
@@ -75,7 +82,7 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
               stroke={config.color}
               strokeWidth={2}
               dot={false}
-              animationDuration={1000} // Increased animation duration
+              animationDuration={1000}
               isAnimationActive={true}
             />
           </LineChart>

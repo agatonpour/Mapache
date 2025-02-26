@@ -1,4 +1,3 @@
-
 import { formatNumber } from "./utils";
 
 export interface SensorData {
@@ -9,54 +8,54 @@ export interface SensorData {
 
 export type SensorType = "aqi" | "tvoc" | "eco2" | "pressure" | "humidity" | "temperature";
 
-export const SENSOR_CONFIG = {
-  aqi: {
-    label: "Air Quality Index",
-    unit: "",
-    min: 0,
-    max: 500,
-    color: "rgb(234, 179, 8)",
-    formatValue: (v: number) => formatNumber(v, 0),
-  },
-  tvoc: {
-    label: "TVOC",
-    unit: "ppb",
-    min: 0,
-    max: 2000,
-    color: "rgb(217, 119, 6)",
-    formatValue: (v: number) => formatNumber(v, 0),
-  },
-  eco2: {
-    label: "eCO₂",
-    unit: "ppm",
-    min: 400,
-    max: 2000,
-    color: "rgb(220, 38, 38)",
-    formatValue: (v: number) => formatNumber(v, 0),
-  },
-  pressure: {
-    label: "Pressure",
-    unit: "hPa",
-    min: 980,
-    max: 1020,
-    color: "rgb(37, 99, 235)",
-    formatValue: (v: number) => formatNumber(v, 1),
+export const SENSOR_CONFIG: Record<SensorType, SensorConfig> = {
+  temperature: {
+    label: "Temperature",
+    unit: "°C",
+    color: "#ef4444",
+    min: 15,
+    max: 35,
+    formatValue: (value) => value.toFixed(1),
   },
   humidity: {
     label: "Humidity",
     unit: "%",
-    min: 0,
-    max: 100,
-    color: "rgb(147, 51, 234)",
-    formatValue: (v: number) => formatNumber(v, 1),
+    color: "#3b82f6",
+    min: 20,
+    max: 80,
+    formatValue: (value) => value.toFixed(1),
   },
-  temperature: {
-    label: "Temperature",
-    unit: "°C",
-    min: -10,
-    max: 40,
-    color: "rgb(239, 68, 68)",
-    formatValue: (v: number) => formatNumber(v, 1),
+  pressure: {
+    label: "Pressure",
+    unit: "hPa",
+    color: "#10b981",
+    min: 980,
+    max: 1020,
+    formatValue: (value) => (value / 100).toFixed(1),
+  },
+  aqi: {
+    label: "Air Quality Index",
+    unit: "AQI",
+    color: "#8b5cf6",
+    min: 0,
+    max: 5,
+    formatValue: (value) => value.toFixed(1),
+  },
+  tvoc: {
+    label: "TVOC",
+    unit: "ppb",
+    color: "#f59e0b",
+    min: 0,
+    max: 2000,
+    formatValue: (value) => value.toFixed(0),
+  },
+  eco2: {
+    label: "eCO2",
+    unit: "ppm",
+    color: "#6366f1",
+    min: 400,
+    max: 2000,
+    formatValue: (value) => value.toFixed(0),
   },
 } as const;
 
