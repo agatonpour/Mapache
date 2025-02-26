@@ -29,17 +29,21 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 1101;
 
 async function startServer() {
   try {
+    // Try to connect without specifying a port - it will auto-detect
     await serialService.connect();
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
-    process.exit(1);
+    setTimeout(() => {
+      console.log('Retrying connection...');
+      startServer();
+    }, 5000);
   }
 }
 
