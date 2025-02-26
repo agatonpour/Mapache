@@ -29,11 +29,11 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 1101;
+const PORT = process.env.PORT || 3001;
+const RECONNECT_INTERVAL = 30000; // 30 seconds between reconnection attempts
 
 async function startServer() {
   try {
-    // Try to connect without specifying a port - it will auto-detect
     await serialService.connect();
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
@@ -43,7 +43,7 @@ async function startServer() {
     setTimeout(() => {
       console.log('Retrying connection...');
       startServer();
-    }, 5000);
+    }, RECONNECT_INTERVAL);
   }
 }
 

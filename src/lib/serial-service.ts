@@ -17,27 +17,14 @@ class SerialService {
   private parser: ReadlineParser | null = null;
   private subscribers: Set<(data: SensorReading) => void> = new Set();
 
-  async connect(portPath?: string) {
+  async connect() {
     try {
-      // List available ports first
-      const ports = await SerialPort.list();
-      console.log('Available ports:', ports);
-
-      // Try to find a USB serial port if no specific port is provided
-      const targetPort = portPath || ports.find(p => 
-        p.path.includes('usbserial') || 
-        p.path.includes('tty.usbserial') || 
-        p.path.includes('USB')
-      )?.path;
-
-      if (!targetPort) {
-        throw new Error('No suitable USB serial port found');
-      }
-
-      console.log('Attempting to connect to port:', targetPort);
+      // Hardcoded port for SparkFun microcontroller
+      const portPath = '/dev/tty.usbmodem1101';
+      console.log('Attempting to connect to hardcoded port:', portPath);
 
       this.port = new SerialPort({
-        path: targetPort,
+        path: portPath,
         baudRate: 115200,
       });
 
@@ -74,7 +61,7 @@ class SerialService {
         console.error('Serial port error:', error);
       });
 
-      console.log('Connected to serial port:', targetPort);
+      console.log('Connected to serial port:', portPath);
     } catch (error) {
       console.error('Failed to connect to serial port:', error);
       throw error;
