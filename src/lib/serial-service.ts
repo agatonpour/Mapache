@@ -17,35 +17,64 @@ class SerialService {
   private parser: ReadlineParser | null = null;
   private subscribers: Set<(data: SensorReading) => void> = new Set();
 
-  async connect(portPath: string = '/dev/cu.usbserial-0001') {
+  async connect(portPath?: string) {
     try {
+      // List available ports first
+      const ports = await SerialPort.list();
+      console.log('Available ports:', ports);
+
+      // Try to find a USB serial port if no specific port is provided
+      const targetPort = portPath || ports.find(p => 
+        p.path.includes('usbserial') || 
+        p.path.includes('tty.usbserial') || 
+        p.path.includes('USB')
+      )?.path;
+
+      if (!targetPort) {
+        throw new Error('No suitable USB serial port found');
+      }
+
+      console.log('Attempting to connect to port:', targetPort);
+
       this.port = new SerialPort({
-        path: portPath,
+        path: targetPort,
         baudRate: 115200,
       });
 
       this.parser = this.port.pipe(new ReadlineParser());
 
       this.parser.on('data', (line: string) => {
-        const [aqi, tvoc, eco2, pressure, humidity, temperature] = line
-          .trim()
-          .split(',')
-          .map(Number);
+        try {
+          console.log('Raw data received:', line);
+          
+          // Parse the data line, removing timestamp if present
+          const dataStr = line.includes('->') ? line.split('->')[1].trim() : line.trim();
+          const values = dataStr.split(',').map(val => parseFloat(val.trim()));
 
-        const reading: SensorReading = {
-          aqi,
-          tvoc,
-          eco2,
-          pressure,
-          humidity,
-          temperature,
-          timestamp: new Date(),
-        };
-
-        this.notifySubscribers(reading);
+          if (values.length >= 6) {
+            const reading: SensorReading = {
+              aqi: values[0],
+              tvoc: values[1],
+              eco2: values[2],
+              pressure: values[3],
+              humidity: values[4],
+              temperature: values[5],
+              timestamp: new Date(),
+            };
+            
+            console.log('Parsed reading:', reading);
+            this.notifySubscribers(reading);
+          }
+        } catch (error) {
+          console.error('Error parsing sensor data:', error);
+        }
       });
 
-      console.log('Connected to serial port:', portPath);
+      this.port.on('error', (error) => {
+        console.error('Serial port error:', error);
+      });
+
+      console.log('Connected to serial port:', targetPort);
     } catch (error) {
       console.error('Failed to connect to serial port:', error);
       throw error;
