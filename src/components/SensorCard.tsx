@@ -1,7 +1,7 @@
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { SENSOR_CONFIG, type SensorType } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
 
 interface SensorCardProps {
   type: SensorType;
@@ -13,36 +13,34 @@ interface SensorCardProps {
 
 export function SensorCard({ type, value, timestamp, onClick, isSelected }: SensorCardProps) {
   const config = SENSOR_CONFIG[type];
+  const displayValue = type === 'pressure' ? value / 100 : value;
 
   return (
     <motion.div
+      layout
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-xl border bg-white/80 backdrop-blur-sm p-4 shadow-sm cursor-pointer transition-colors ${
+        isSelected ? "border-blue-500 shadow-blue-100" : "border-gray-200/50"
+      }`}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      onClick={onClick}
-      className={cn(
-        "relative p-6 rounded-xl backdrop-blur-sm cursor-pointer transition-colors",
-        "border border-gray-200/50 shadow-sm",
-        "hover:border-gray-300/50",
-        isSelected
-          ? "bg-white/90 shadow-lg"
-          : "bg-white/70 hover:bg-white/80"
-      )}
     >
-      <div className="flex flex-col gap-2">
-        <div className="text-sm text-gray-500 font-medium">
-          {config.label}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <h3 className="font-medium text-gray-900">{config.label}</h3>
+          <div
+            className="h-2 w-2 rounded-full"
+            style={{ backgroundColor: config.color }}
+          />
         </div>
-        <div className="flex items-baseline gap-2">
-          <div className="text-3xl font-semibold tracking-tight">
-            {config.formatValue(value)}
-          </div>
-          <div className="text-sm text-gray-500">
-            {config.unit}
-          </div>
+        <div className="flex items-baseline justify-between">
+          <p className="text-2xl font-bold tracking-tight text-gray-900">
+            {config.formatValue(displayValue)} {config.unit}
+          </p>
         </div>
-        <div className="text-xs text-gray-400">
-          {timestamp.toLocaleTimeString()}
-        </div>
+        <p className="text-sm text-gray-500">
+          Last updated: {timestamp.toLocaleTimeString()}
+        </p>
       </div>
     </motion.div>
   );
