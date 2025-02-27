@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from "react";
+import { io } from "socket.io-client";
 import {
   Select,
   SelectContent,
@@ -7,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 interface SerialPortSettingsProps {
   onPortChange: (port: string) => void;
@@ -14,19 +16,42 @@ interface SerialPortSettingsProps {
 }
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200];
-const DEFAULT_PORT = "/dev/tty.usbmodem1101";
+const BACKEND_URL = 'http://localhost:3001';
 
 export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPortSettingsProps) {
-  const [availablePorts, setAvailablePorts] = useState<string[]>([DEFAULT_PORT]);
-  const [selectedPort, setSelectedPort] = useState<string>(DEFAULT_PORT);
+  const [availablePorts, setAvailablePorts] = useState<string[]>([]);
+  const [selectedPort, setSelectedPort] = useState<string>("");
   const [selectedBaudRate, setSelectedBaudRate] = useState<number>(115200);
+  const { toast } = useToast();
 
   useEffect(() => {
-    // In a real implementation, this would fetch the available ports
-    // For now, we're just using the default port
-    setAvailablePorts([DEFAULT_PORT]);
-    onPortChange(DEFAULT_PORT);
-  }, [onPortChange]);
+    const socket = io(BACKEND_URL);
+
+    socket.on('connect', () => {
+      // Request available ports when connected
+      socket.emit('getPorts');
+    });
+
+    socket.on('availablePorts', (ports: string[]) => {
+      setAvailablePorts(ports);
+      if (ports.length > 0 && !selectedPort) {
+        setSelectedPort(ports[0]);
+        onPortChange(ports[0]);
+      }
+    });
+
+    socket.on('error', (error: string) => {
+      toast({
+        title: "Error",
+        description: error,
+        variant: "destructive",
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [onPortChange, selectedPort, toast]);
 
   const handlePortChange = (port: string) => {
     setSelectedPort(port);
