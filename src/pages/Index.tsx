@@ -1,10 +1,10 @@
-
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { io } from "socket.io-client";
 import { SensorCard } from "@/components/SensorCard";
 import { SensorGraph } from "@/components/SensorGraph";
 import { TimeframeSelector } from "@/components/TimeframeSelector";
+import { SerialPortSettings } from "@/components/SerialPortSettings";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,16 @@ export default function Index() {
   const [filteredSensorData, setFilteredSensorData] = useState<Record<SensorType, SensorData[]>>(
     Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
   );
+
+  const handlePortChange = (port: string) => {
+    // This would be handled by your backend
+    console.log("Selected port:", port);
+  };
+
+  const handleBaudRateChange = (baudRate: number) => {
+    // This would be handled by your backend
+    console.log("Selected baud rate:", baudRate);
+  };
 
   // Function to filter data based on timeframe
   const filterDataByTimeframe = (data: SensorData[], selectedTimeframe: Timeframe) => {
@@ -170,6 +180,11 @@ export default function Index() {
               Real-time Environmental Monitoring
             </p>
           </div>
+
+          <SerialPortSettings
+            onPortChange={handlePortChange}
+            onBaudRateChange={handleBaudRateChange}
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Object.entries(SENSOR_CONFIG).map(([type]) => (
