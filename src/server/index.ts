@@ -19,6 +19,7 @@ const io = new Server(server, {
 
 // Track active connections to prevent reconnection loops
 let isConnectingToPort = false;
+let activeConnections = new Map();
 
 io.on('connection', (socket) => {
   console.log('Client connected');
@@ -53,12 +54,16 @@ io.on('connection', (socket) => {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       await serialService.connect(portPath, baudRate);
+      
+      // Store this connection in our active connections
+      activeConnections.set(socket.id, { portPath, baudRate });
+      
       isConnectingToPort = false;
       socket.emit('connectionStatus', { connected: true, port: portPath, baudRate });
     } catch (error) {
       console.error('Error connecting to port:', error);
       isConnectingToPort = false;
-      socket.emit('error', `Failed to connect to port ${portPath}`);
+      socket.emit('error', `Failed to connect to port ${portPath}: ${error.message}`);
       socket.emit('connectionStatus', { connected: false });
     }
   });
@@ -67,6 +72,8 @@ io.on('connection', (socket) => {
   socket.on('disconnectPort', async () => {
     try {
       await serialService.disconnect();
+      // Remove from active connections
+      activeConnections.delete(socket.id);
       socket.emit('connectionStatus', { connected: false });
     } catch (error) {
       console.error('Error disconnecting from port:', error);
@@ -82,8 +89,15 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('Client disconnected');
     unsubscribe();
-    // We don't disconnect from the port on client disconnect
-    // as other clients might be using the same port
+    
+    // Remove from active connections
+    activeConnections.delete(socket.id);
+    
+    // If this was the last connected client, disconnect from the port
+    if (activeConnections.size === 0) {
+      // We may want to disconnect from the serial port here
+      // serialService.disconnect();
+    }
   });
 });
 
