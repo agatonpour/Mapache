@@ -3,89 +3,123 @@ import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
 
 export interface SensorReading {
-  aqi: number;
+  temperature: number;
+  humidity: number;
+  pressure: number;
   tvoc: number;
   eco2: number;
-  pressure: number;
-  humidity: number;
-  temperature: number;
-  timestamp: Date;
+  aqi: number;
+  timestamp: number;
 }
+
+type Subscriber = (data: SensorReading) => void;
 
 class SerialService {
   private port: SerialPort | null = null;
   private parser: ReadlineParser | null = null;
-  private subscribers: Set<(data: SensorReading) => void> = new Set();
+  private subscribers: Subscriber[] = [];
+  private defaultPort: string = '/dev/tty.usbmodem1101';
+  private defaultBaudRate: number = 115200;
 
-  async connect() {
+  constructor() {}
+
+  async connect(portPath: string = this.defaultPort, baudRate: number = this.defaultBaudRate): Promise<void> {
     try {
-      // Hardcoded port for SparkFun microcontroller
-      const portPath = '/dev/tty.usbmodem1101';
-      console.log('Attempting to connect to hardcoded port:', portPath);
+      if (this.port) {
+        await this.disconnect();
+      }
 
       this.port = new SerialPort({
         path: portPath,
-        baudRate: 115200,
+        baudRate: baudRate,
+        autoOpen: false
       });
 
-      this.parser = this.port.pipe(new ReadlineParser());
+      this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
 
-      this.parser.on('data', (line: string) => {
-        try {
-          console.log('Raw data received:', line);
-          
-          // Parse the data line, removing timestamp if present
-          const dataStr = line.includes('->') ? line.split('->')[1].trim() : line.trim();
-          const values = dataStr.split(',').map(val => parseFloat(val.trim()));
+      return new Promise((resolve, reject) => {
+        if (!this.port) return reject(new Error('Serial port not initialized'));
 
-          if (values.length >= 6) {
-            const reading: SensorReading = {
-              aqi: values[0],
-              tvoc: values[1],
-              eco2: values[2],
-              pressure: values[3],
-              humidity: values[4],
-              temperature: values[5],
-              timestamp: new Date(),
-            };
-            
-            console.log('Parsed reading:', reading);
-            this.notifySubscribers(reading);
+        this.port.open((err) => {
+          if (err) {
+            console.error('Error opening serial port:', err.message);
+            return reject(err);
           }
-        } catch (error) {
-          console.error('Error parsing sensor data:', error);
-        }
-      });
 
-      this.port.on('error', (error) => {
-        console.error('Serial port error:', error);
-      });
+          console.log(`Connected to serial port: ${portPath} at ${baudRate} baud`);
 
-      console.log('Connected to serial port:', portPath);
+          if (this.parser) {
+            this.parser.on('data', (data: string) => {
+              try {
+                const reading = this.parseData(data);
+                this.notifySubscribers(reading);
+              } catch (error) {
+                console.error('Error parsing data:', error);
+              }
+            });
+          }
+
+          this.port.on('error', (err) => {
+            console.error('Serial port error:', err);
+          });
+
+          resolve();
+        });
+      });
     } catch (error) {
       console.error('Failed to connect to serial port:', error);
       throw error;
     }
   }
 
-  subscribe(callback: (data: SensorReading) => void) {
-    this.subscribers.add(callback);
-    return () => this.subscribers.delete(callback);
+  async disconnect(): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.port && this.port.isOpen) {
+        this.port.close((err) => {
+          if (err) {
+            console.error('Error closing port:', err);
+          } else {
+            console.log('Serial port closed successfully');
+          }
+          this.port = null;
+          this.parser = null;
+          resolve();
+        });
+      } else {
+        this.port = null;
+        this.parser = null;
+        resolve();
+      }
+    });
   }
 
-  private notifySubscribers(reading: SensorReading) {
-    this.subscribers.forEach((callback) => callback(reading));
-  }
-
-  async disconnect() {
-    if (this.port) {
-      await new Promise<void>((resolve) => {
-        this.port?.close(() => resolve());
-      });
-      this.port = null;
-      this.parser = null;
-      this.subscribers.clear();
+  private parseData(data: string): SensorReading {
+    try {
+      const jsonData = JSON.parse(data);
+      return {
+        temperature: parseFloat(jsonData.temperature) || 0,
+        humidity: parseFloat(jsonData.humidity) || 0, 
+        pressure: parseFloat(jsonData.pressure) || 0,
+        tvoc: parseFloat(jsonData.tvoc) || 0,
+        eco2: parseFloat(jsonData.eco2) || 0,
+        aqi: parseFloat(jsonData.aqi) || 0,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('Error parsing JSON data:', error);
+      throw error;
     }
+  }
+
+  subscribe(callback: Subscriber): () => void {
+    this.subscribers.push(callback);
+    return () => {
+      this.subscribers = this.subscribers.filter((cb) => cb !== callback);
+    };
+  }
+
+  private notifySubscribers(data: SensorReading) {
+    this.subscribers.forEach((callback) => callback(data));
   }
 }
 

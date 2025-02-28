@@ -1,6 +1,6 @@
 
 import { useEffect, useState } from "react";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import {
   Select,
   SelectContent,
@@ -22,17 +22,24 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
   const [selectedPort, setSelectedPort] = useState<string>("");
   const [selectedBaudRate, setSelectedBaudRate] = useState<number>(115200);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<{connected: boolean, port?: string, baudRate?: number}>({
+    connected: false
+  });
   const { toast } = useToast();
 
   useEffect(() => {
-    const socket = io(BACKEND_URL);
+    const newSocket = io(BACKEND_URL);
+    setSocket(newSocket);
 
-    socket.on('connect', () => {
+    newSocket.on('connect', () => {
+      console.log('Connected to server');
       // Request available ports when connected
-      socket.emit('getPorts');
+      newSocket.emit('getPorts');
     });
 
-    socket.on('availablePorts', (ports: string[]) => {
+    newSocket.on('availablePorts', (ports: string[]) => {
+      console.log('Available ports:', ports);
       setAvailablePorts(ports);
       if (ports.length > 0 && !selectedPort) {
         setSelectedPort(ports[0]);
@@ -40,7 +47,23 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
       }
     });
 
-    socket.on('error', (error: string) => {
+    newSocket.on('connectionStatus', (status: {connected: boolean, port?: string, baudRate?: number}) => {
+      setConnectionStatus(status);
+      if (status.connected) {
+        toast({
+          title: "Connected",
+          description: `Connected to ${status.port} at ${status.baudRate} baud`,
+        });
+      } else {
+        toast({
+          title: "Disconnected",
+          description: "Serial connection closed",
+          variant: "destructive",
+        });
+      }
+    });
+
+    newSocket.on('error', (error: string) => {
       toast({
         title: "Error",
         description: error,
@@ -49,9 +72,16 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
     });
 
     return () => {
-      socket.disconnect();
+      newSocket.disconnect();
     };
-  }, [onPortChange, selectedPort, toast]);
+  }, [onPortChange, toast]);
+
+  useEffect(() => {
+    // When both port and baudRate are selected, attempt to connect
+    if (socket && selectedPort && selectedBaudRate) {
+      socket.emit('connectToPort', selectedPort, selectedBaudRate);
+    }
+  }, [socket, selectedPort, selectedBaudRate]);
 
   const handlePortChange = (port: string) => {
     setSelectedPort(port);
@@ -98,6 +128,13 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
             ))}
           </SelectContent>
         </Select>
+      </div>
+      <div className="text-sm ml-2">
+        {connectionStatus.connected ? (
+          <span className="text-green-600">●</span>
+        ) : (
+          <span className="text-red-600">●</span>
+        )}
       </div>
     </div>
   );
