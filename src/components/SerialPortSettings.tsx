@@ -77,7 +77,13 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
     });
 
     return () => {
-      newSocket.disconnect();
+      // Properly clean up the socket connection
+      if (newSocket) {
+        if (connectionStatus.connected) {
+          newSocket.emit('disconnectPort');
+        }
+        newSocket.disconnect();
+      }
     };
   }, [onPortChange, toast]);
 
@@ -91,7 +97,6 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   const handleDisconnect = () => {
     if (socket) {
       socket.emit('disconnectPort');
-      setConnectionStatus({ connected: false });
     }
   };
 

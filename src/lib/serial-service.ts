@@ -21,6 +21,8 @@ class SerialService {
   private defaultPort: string = '/dev/tty.usbmodem1101';
   private defaultBaudRate: number = 115200;
   private isConnecting: boolean = false;
+  private reconnectAttempts: number = 0;
+  private maxReconnectAttempts: number = 3;
 
   constructor() {}
 
@@ -32,6 +34,7 @@ class SerialService {
     
     try {
       this.isConnecting = true;
+      this.reconnectAttempts = 0;
       
       // Make sure we're disconnected first
       await this.disconnect();
@@ -64,22 +67,26 @@ class SerialService {
             
             this.parser.on('data', (data: string) => {
               try {
-                const reading = this.parseData(data);
-                this.notifySubscribers(reading);
+                const reading = this.parseCSVData(data.trim());
+                if (reading) {
+                  this.notifySubscribers(reading);
+                }
               } catch (error) {
                 console.error('Error parsing data:', error);
               }
             });
             
-            this.port.on('error', (err) => {
-              console.error('Serial port error:', err);
-            });
-            
-            this.port.on('close', () => {
-              console.log('Serial port was closed');
-              this.port = null;
-              this.parser = null;
-            });
+            if (this.port) {
+              this.port.on('error', (err) => {
+                console.error('Serial port error:', err);
+              });
+              
+              this.port.on('close', () => {
+                console.log('Serial port was closed');
+                this.port = null;
+                this.parser = null;
+              });
+            }
           }
 
           resolve();
@@ -113,21 +120,36 @@ class SerialService {
     });
   }
 
-  private parseData(data: string): SensorReading {
+  private parseCSVData(data: string): SensorReading | null {
     try {
-      const jsonData = JSON.parse(data);
+      // Check if the data string has content
+      if (!data || data.length === 0) {
+        return null;
+      }
+
+      // Split by comma and trim each value
+      const values = data.split(',').map(val => val.trim());
+      
+      // Ensure we have all the values we need (at least 6 values)
+      if (values.length < 6) {
+        console.warn('Incomplete data received:', data);
+        return null;
+      }
+
+      // Format: index, temp, humidity, pressure, tvoc, eco2, aqi (optional)
+      // e.g.: "1, 24, 401, 100917, 37, 27.10"
       return {
-        temperature: parseFloat(jsonData.temperature) || 0,
-        humidity: parseFloat(jsonData.humidity) || 0, 
-        pressure: parseFloat(jsonData.pressure) || 0,
-        tvoc: parseFloat(jsonData.tvoc) || 0,
-        eco2: parseFloat(jsonData.eco2) || 0,
-        aqi: parseFloat(jsonData.aqi) || 0,
+        temperature: parseFloat(values[1]) || 0,
+        humidity: parseFloat(values[2]) || 0,
+        pressure: parseFloat(values[3]) || 0,
+        tvoc: parseFloat(values[4]) || 0,
+        eco2: parseFloat(values[5]) || 0,
+        aqi: values.length > 6 ? parseFloat(values[6]) || 0 : 0,
         timestamp: Date.now()
       };
     } catch (error) {
-      console.error('Error parsing JSON data:', error);
-      throw error;
+      console.error('Error parsing CSV data:', error);
+      return null;
     }
   }
 
