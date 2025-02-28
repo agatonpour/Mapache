@@ -13,6 +13,8 @@ interface SensorCardProps {
 
 export function SensorCard({ type, value, timestamp, onClick, isSelected }: SensorCardProps) {
   const config = SENSOR_CONFIG[type];
+  
+  // Format value correctly based on sensor type
   const displayValue = type === 'pressure' ? value / 100 : value;
 
   return (

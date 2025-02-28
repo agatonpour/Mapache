@@ -1,6 +1,7 @@
 
 import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
+import EventEmitter from 'events';
 
 export interface SensorReading {
   temperature: number;
@@ -12,24 +13,27 @@ export interface SensorReading {
   timestamp: number;
 }
 
-type Subscriber = (data: SensorReading) => void;
-
-class SerialService {
+class SerialService extends EventEmitter {
   private port: SerialPort | null = null;
   private parser: ReadlineParser | null = null;
-  private subscribers: Subscriber[] = [];
-  private defaultPort: string = '/dev/tty.usbmodem1101';
-  private defaultBaudRate: number = 115200;
   private isConnecting: boolean = false;
   private reconnectAttempts: number = 0;
   private maxReconnectAttempts: number = 3;
+  private isConnected: boolean = false;
 
-  constructor() {}
+  constructor() {
+    super();
+  }
 
-  async connect(portPath: string = this.defaultPort, baudRate: number = this.defaultBaudRate): Promise<void> {
-    // Don't attempt to connect if already connecting
+  async connect(portPath: string, baudRate: number): Promise<void> {
+    // Don't attempt to connect if already connecting or connected
     if (this.isConnecting) {
       throw new Error('Already attempting to connect');
+    }
+    
+    if (this.isConnected && this.port?.isOpen) {
+      console.log(`Already connected to ${portPath}`);
+      return;
     }
     
     try {
@@ -38,6 +42,8 @@ class SerialService {
       
       // Make sure we're disconnected first
       await this.disconnect();
+      
+      console.log(`Attempting to connect to: ${portPath} at ${baudRate} baud`);
       
       this.port = new SerialPort({
         path: portPath,
@@ -57,43 +63,50 @@ class SerialService {
           if (err) {
             console.error('Error opening serial port:', err.message);
             this.port = null;
+            this.isConnected = false;
             return reject(err);
           }
 
           console.log(`Connected to serial port: ${portPath} at ${baudRate} baud`);
+          this.isConnected = true;
 
-          if (this.port) {
-            this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
-            
-            this.parser.on('data', (data: string) => {
-              try {
-                const reading = this.parseCSVData(data.trim());
-                if (reading) {
-                  this.notifySubscribers(reading);
-                }
-              } catch (error) {
-                console.error('Error parsing data:', error);
+          // Setup parser for incoming data
+          this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
+          
+          // Listen for data continuously
+          this.parser.on('data', (data: string) => {
+            try {
+              console.log('Raw data received:', data);
+              const reading = this.parseCSVData(data.trim());
+              if (reading) {
+                this.emit('sensorData', reading);
               }
-            });
-            
-            if (this.port) {
-              this.port.on('error', (err) => {
-                console.error('Serial port error:', err);
-              });
-              
-              this.port.on('close', () => {
-                console.log('Serial port was closed');
-                this.port = null;
-                this.parser = null;
-              });
+            } catch (error) {
+              console.error('Error parsing data:', error);
             }
-          }
+          });
+          
+          // Handle port errors
+          this.port.on('error', (err) => {
+            console.error('Serial port error:', err);
+            this.emit('error', err.message);
+          });
+          
+          // Handle port closure
+          this.port.on('close', () => {
+            console.log('Serial port was closed');
+            this.isConnected = false;
+            this.port = null;
+            this.parser = null;
+            this.emit('disconnected');
+          });
 
           resolve();
         });
       });
     } catch (error) {
       this.isConnecting = false;
+      this.isConnected = false;
       console.error('Failed to connect to serial port:', error);
       throw error;
     }
@@ -101,18 +114,20 @@ class SerialService {
 
   async disconnect(): Promise<void> {
     return new Promise<void>((resolve) => {
-      if (this.port && this.port.isOpen) {
+      if (this.isConnected && this.port && this.port.isOpen) {
         this.port.close((err) => {
           if (err) {
             console.error('Error closing port:', err);
           } else {
             console.log('Serial port closed successfully');
           }
+          this.isConnected = false;
           this.port = null;
           this.parser = null;
           resolve();
         });
       } else {
+        this.isConnected = false;
         this.port = null;
         this.parser = null;
         resolve();
@@ -140,7 +155,7 @@ class SerialService {
       // e.g.: "1, 24, 401, 100917, 37, 27.10"
       return {
         temperature: parseFloat(values[1]) || 0,
-        humidity: parseFloat(values[2]) || 0,
+        humidity: parseFloat(values[2]) / 10 || 0, // Divide by 10 to get the correct humidity value
         pressure: parseFloat(values[3]) || 0,
         tvoc: parseFloat(values[4]) || 0,
         eco2: parseFloat(values[5]) || 0,
@@ -153,15 +168,8 @@ class SerialService {
     }
   }
 
-  subscribe(callback: Subscriber): () => void {
-    this.subscribers.push(callback);
-    return () => {
-      this.subscribers = this.subscribers.filter((cb) => cb !== callback);
-    };
-  }
-
-  private notifySubscribers(data: SensorReading) {
-    this.subscribers.forEach((callback) => callback(data));
+  isPortConnected(): boolean {
+    return this.isConnected && this.port !== null && this.port.isOpen;
   }
 }
 
