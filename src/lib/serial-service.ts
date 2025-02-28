@@ -59,9 +59,11 @@ class SerialService {
             });
           }
 
-          this.port.on('error', (err) => {
-            console.error('Serial port error:', err);
-          });
+          if (this.port) {
+            this.port.on('error', (err) => {
+              console.error('Serial port error:', err);
+            });
+          }
 
           resolve();
         });
