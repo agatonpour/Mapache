@@ -20,35 +20,48 @@ class SerialService {
   private subscribers: Subscriber[] = [];
   private defaultPort: string = '/dev/tty.usbmodem1101';
   private defaultBaudRate: number = 115200;
+  private isConnecting: boolean = false;
 
   constructor() {}
 
   async connect(portPath: string = this.defaultPort, baudRate: number = this.defaultBaudRate): Promise<void> {
+    // Don't attempt to connect if already connecting
+    if (this.isConnecting) {
+      throw new Error('Already attempting to connect');
+    }
+    
     try {
-      if (this.port) {
-        await this.disconnect();
-      }
-
+      this.isConnecting = true;
+      
+      // Make sure we're disconnected first
+      await this.disconnect();
+      
       this.port = new SerialPort({
         path: portPath,
         baudRate: baudRate,
         autoOpen: false
       });
 
-      this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
-
       return new Promise((resolve, reject) => {
-        if (!this.port) return reject(new Error('Serial port not initialized'));
+        if (!this.port) {
+          this.isConnecting = false;
+          return reject(new Error('Serial port not initialized'));
+        }
 
         this.port.open((err) => {
+          this.isConnecting = false;
+          
           if (err) {
             console.error('Error opening serial port:', err.message);
+            this.port = null;
             return reject(err);
           }
 
           console.log(`Connected to serial port: ${portPath} at ${baudRate} baud`);
 
-          if (this.parser) {
+          if (this.port) {
+            this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
+            
             this.parser.on('data', (data: string) => {
               try {
                 const reading = this.parseData(data);
@@ -57,11 +70,15 @@ class SerialService {
                 console.error('Error parsing data:', error);
               }
             });
-          }
-
-          if (this.port) {
+            
             this.port.on('error', (err) => {
               console.error('Serial port error:', err);
+            });
+            
+            this.port.on('close', () => {
+              console.log('Serial port was closed');
+              this.port = null;
+              this.parser = null;
             });
           }
 
@@ -69,13 +86,14 @@ class SerialService {
         });
       });
     } catch (error) {
+      this.isConnecting = false;
       console.error('Failed to connect to serial port:', error);
       throw error;
     }
   }
 
   async disconnect(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise<void>((resolve) => {
       if (this.port && this.port.isOpen) {
         this.port.close((err) => {
           if (err) {
