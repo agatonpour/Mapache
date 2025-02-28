@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 interface SerialPortSettingsProps {
   onPortChange: (port: string) => void;
@@ -26,6 +27,7 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   const [connectionStatus, setConnectionStatus] = useState<{connected: boolean, port?: string, baudRate?: number}>({
     connected: false
   });
+  const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -49,6 +51,8 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
 
     newSocket.on('connectionStatus', (status: {connected: boolean, port?: string, baudRate?: number}) => {
       setConnectionStatus(status);
+      setIsConnecting(false);
+      
       if (status.connected) {
         toast({
           title: "Connected",
@@ -64,6 +68,7 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
     });
 
     newSocket.on('error', (error: string) => {
+      setIsConnecting(false);
       toast({
         title: "Error",
         description: error,
@@ -76,12 +81,19 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
     };
   }, [onPortChange, toast]);
 
-  useEffect(() => {
-    // When both port and baudRate are selected, attempt to connect
+  const handleConnect = () => {
     if (socket && selectedPort && selectedBaudRate) {
+      setIsConnecting(true);
       socket.emit('connectToPort', selectedPort, selectedBaudRate);
     }
-  }, [socket, selectedPort, selectedBaudRate]);
+  };
+
+  const handleDisconnect = () => {
+    if (socket) {
+      socket.emit('disconnectPort');
+      setConnectionStatus({ connected: false });
+    }
+  };
 
   const handlePortChange = (port: string) => {
     setSelectedPort(port);
@@ -129,12 +141,31 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
           </SelectContent>
         </Select>
       </div>
-      <div className="text-sm ml-2">
+      <div className="flex flex-col gap-2">
         {connectionStatus.connected ? (
-          <span className="text-green-600">●</span>
+          <Button 
+            variant="destructive" 
+            onClick={handleDisconnect}
+            disabled={isConnecting}
+          >
+            Disconnect
+          </Button>
         ) : (
-          <span className="text-red-600">●</span>
+          <Button 
+            variant="default" 
+            onClick={handleConnect}
+            disabled={isConnecting || !selectedPort}
+          >
+            {isConnecting ? "Connecting..." : "Connect"}
+          </Button>
         )}
+        <div className="text-sm flex items-center">
+          Status: {connectionStatus.connected ? (
+            <span className="text-green-600 ml-1">● Connected</span>
+          ) : (
+            <span className="text-red-600 ml-1">● Disconnected</span>
+          )}
+        </div>
       </div>
     </div>
   );

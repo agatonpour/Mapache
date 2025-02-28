@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { io } from "socket.io-client";
@@ -18,6 +19,7 @@ export default function Index() {
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const errorToastShown = useRef(false);
   const [sensorConnected, setSensorConnected] = useState(false);
+  const socketRef = useRef<any>(null);
 
   // Store all sensor data since the app started
   const allSensorData = useRef<Record<SensorType, SensorData[]>>(
@@ -54,14 +56,24 @@ export default function Index() {
   };
 
   useEffect(() => {
-    const socket = io(BACKEND_URL);
+    // Cleanup previous connection if exists
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+    
+    const socket = io(BACKEND_URL, {
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 5000
+    });
+    socketRef.current = socket;
 
     socket.on('connect', () => {
       errorToastShown.current = false;
       if (!sensorConnected) {
         toast({
-          title: "Connected to sensor",
-          description: "Receiving real-time data from the Raccoonbot",
+          title: "Connected to server",
+          description: "Server connection established",
         });
         setSensorConnected(true);
       }
@@ -72,9 +84,10 @@ export default function Index() {
         errorToastShown.current = true;
         toast({
           title: "Error",
-          description: "Failed to collect sensor data",
+          description: "Failed to connect to server",
           variant: "destructive",
         });
+        setSensorConnected(false);
       }
     });
 
@@ -113,7 +126,9 @@ export default function Index() {
     });
 
     return () => {
-      socket.disconnect();
+      if (socket) {
+        socket.disconnect();
+      }
     };
   }, [toast, timeframe]);
 

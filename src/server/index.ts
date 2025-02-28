@@ -17,6 +17,9 @@ const io = new Server(server, {
   }
 });
 
+// Track active connections to prevent reconnection loops
+let isConnectingToPort = false;
+
 io.on('connection', (socket) => {
   console.log('Client connected');
   
@@ -34,17 +37,44 @@ io.on('connection', (socket) => {
   
   // Handle port and baudRate selection
   socket.on('connectToPort', async (portPath: string, baudRate: number) => {
+    // Prevent multiple connection attempts at once
+    if (isConnectingToPort) {
+      socket.emit('error', 'Already attempting to connect to a port');
+      return;
+    }
+    
     try {
-      await serialService.disconnect(); // Disconnect from current port if connected
+      isConnectingToPort = true;
+      
+      // Ensure we're disconnected first
+      await serialService.disconnect();
+      
+      // Wait a moment to ensure port is released
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       await serialService.connect(portPath, baudRate);
+      isConnectingToPort = false;
       socket.emit('connectionStatus', { connected: true, port: portPath, baudRate });
     } catch (error) {
       console.error('Error connecting to port:', error);
+      isConnectingToPort = false;
       socket.emit('error', `Failed to connect to port ${portPath}`);
       socket.emit('connectionStatus', { connected: false });
     }
   });
   
+  // Handle explicit disconnect request
+  socket.on('disconnectPort', async () => {
+    try {
+      await serialService.disconnect();
+      socket.emit('connectionStatus', { connected: false });
+    } catch (error) {
+      console.error('Error disconnecting from port:', error);
+      socket.emit('error', 'Failed to disconnect from port');
+    }
+  });
+  
+  // Subscribe to sensor data
   const unsubscribe = serialService.subscribe((reading: SensorReading) => {
     socket.emit('sensorData', reading);
   });
@@ -52,26 +82,20 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('Client disconnected');
     unsubscribe();
+    // We don't disconnect from the port on client disconnect
+    // as other clients might be using the same port
   });
 });
 
-// Update the serial service to accept port and baudRate parameters
-let connected = false;
 const PORT = process.env.PORT || 3001;
-const RECONNECT_INTERVAL = 30000; // 30 seconds between reconnection attempts
 
 async function startServer() {
   try {
-    // Don't connect immediately - wait for client to select port
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
-    setTimeout(() => {
-      console.log('Retrying connection...');
-      startServer();
-    }, RECONNECT_INTERVAL);
   }
 }
 
