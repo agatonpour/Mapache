@@ -1,15 +1,18 @@
 
 import express from 'express';
+import http from 'http';
 import { Server } from 'socket.io';
-import { createServer } from 'http';
-import { serialService, type SensorReading } from '../lib/serial-service';
 import cors from 'cors';
 import { SerialPort } from 'serialport';
+import { serialService } from '../lib/serial-service';
 
 const app = express();
+const server = http.createServer(app);
+
+// Configure CORS
 app.use(cors());
 
-const server = createServer(app);
+// Setup Socket.IO
 const io = new Server(server, {
   cors: {
     origin: '*',
@@ -17,49 +20,80 @@ const io = new Server(server, {
   }
 });
 
-// Track active connections to prevent reconnection loops
+// State tracking
+let activePort: string | null = null;
+let activeBaudRate: number | null = null;
 let isConnectingToPort = false;
-let activeConnections = new Map();
+const activeClients = new Set<string>();
 
+// Listen for socket connections
 io.on('connection', (socket) => {
   console.log('Client connected');
-  
-  // Handle getPorts event
+  activeClients.add(socket.id);
+
+  // Forward sensor data to all connected clients
+  const handleSensorData = (data: any) => {
+    socket.emit('sensorData', data);
+  };
+
+  // Forward errors to the client
+  const handleError = (errorMessage: string) => {
+    socket.emit('error', errorMessage);
+  };
+
+  // Handle disconnection from the serial port
+  const handleDisconnection = () => {
+    socket.emit('connectionStatus', { connected: false });
+    activePort = null;
+    activeBaudRate = null;
+  };
+
+  // Register event listeners
+  serialService.on('sensorData', handleSensorData);
+  serialService.on('error', handleError);
+  serialService.on('disconnected', handleDisconnection);
+
+  // Send current connection status on connect
+  socket.emit('connectionStatus', {
+    connected: serialService.isPortConnected(),
+    port: activePort,
+    baudRate: activeBaudRate
+  });
+
+  // Get available serial ports
   socket.on('getPorts', async () => {
     try {
       const ports = await SerialPort.list();
       const portPaths = ports.map(port => port.path);
       socket.emit('availablePorts', portPaths);
     } catch (error) {
-      console.error('Error listing serial ports:', error);
-      socket.emit('error', 'Failed to list serial ports');
+      console.error('Error listing ports:', error);
+      socket.emit('error', 'Failed to list available ports');
     }
   });
-  
-  // Handle port and baudRate selection
-  socket.on('connectToPort', async (portPath: string, baudRate: number) => {
-    // Prevent multiple connection attempts at once
+
+  // Connect to a serial port
+  socket.on('connectToPort', async (portPath, baudRate) => {
     if (isConnectingToPort) {
       socket.emit('error', 'Already attempting to connect to a port');
       return;
     }
-    
+
     try {
       isConnectingToPort = true;
-      
-      // Ensure we're disconnected first
-      await serialService.disconnect();
-      
-      // Wait a moment to ensure port is released
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log(`Attempting to connect to port: ${portPath} at ${baudRate} baud`);
       
       await serialService.connect(portPath, baudRate);
       
-      // Store this connection in our active connections
-      activeConnections.set(socket.id, { portPath, baudRate });
-      
+      activePort = portPath;
+      activeBaudRate = baudRate;
       isConnectingToPort = false;
-      socket.emit('connectionStatus', { connected: true, port: portPath, baudRate });
+      
+      socket.emit('connectionStatus', {
+        connected: true,
+        port: portPath,
+        baudRate: baudRate
+      });
     } catch (error) {
       console.error('Error connecting to port:', error);
       isConnectingToPort = false;
@@ -69,50 +103,43 @@ io.on('connection', (socket) => {
       socket.emit('connectionStatus', { connected: false });
     }
   });
-  
-  // Handle explicit disconnect request
+
+  // Disconnect from serial port
   socket.on('disconnectPort', async () => {
     try {
       await serialService.disconnect();
-      // Remove from active connections
-      activeConnections.delete(socket.id);
       socket.emit('connectionStatus', { connected: false });
+      activePort = null;
+      activeBaudRate = null;
     } catch (error) {
       console.error('Error disconnecting from port:', error);
-      socket.emit('error', 'Failed to disconnect from port');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      socket.emit('error', `Failed to disconnect: ${errorMessage}`);
     }
   });
-  
-  // Subscribe to sensor data
-  const unsubscribe = serialService.subscribe((reading: SensorReading) => {
-    socket.emit('sensorData', reading);
-  });
 
+  // Handle client disconnect
   socket.on('disconnect', () => {
     console.log('Client disconnected');
-    unsubscribe();
+    activeClients.delete(socket.id);
     
-    // Remove from active connections
-    activeConnections.delete(socket.id);
+    // Remove event listeners
+    serialService.removeListener('sensorData', handleSensorData);
+    serialService.removeListener('error', handleError);
+    serialService.removeListener('disconnected', handleDisconnection);
     
-    // If this was the last connected client, disconnect from the port
-    if (activeConnections.size === 0) {
-      // We may want to disconnect from the serial port here
-      // serialService.disconnect();
+    // If no clients are connected, disconnect from the serial port
+    if (activeClients.size === 0 && serialService.isPortConnected()) {
+      console.log('No active clients, disconnecting from serial port');
+      serialService.disconnect().catch(err => {
+        console.error('Error disconnecting from port after client disconnect:', err);
+      });
     }
   });
 });
 
+// Start the server
 const PORT = process.env.PORT || 3001;
-
-async function startServer() {
-  try {
-    server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-  }
-}
-
-startServer();
+server.listen(PORT, () => {
+  console.log(`Server listening on port ${PORT}`);
+});
