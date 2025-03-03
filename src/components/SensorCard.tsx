@@ -15,10 +15,8 @@ export function SensorCard({ type, value, timestamp, onClick, isSelected }: Sens
   const config = SENSOR_CONFIG[type];
   
   // Format value correctly based on sensor type
-  // For humidity, divide by 10 to get correct percentage
-  // For pressure, divide by 100 to get correct value
-  const displayValue = type === 'pressure' ? value / 100 : 
-                       type === 'humidity' ? value / 10 : 
+  const displayValue = type === 'humidity' ? value / 10 : 
+                       type === 'pressure' ? value / 100 : 
                        value;
 
   return (
