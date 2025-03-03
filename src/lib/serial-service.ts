@@ -70,36 +70,38 @@ class SerialService extends EventEmitter {
           console.log(`Connected to serial port: ${portPath} at ${baudRate} baud`);
           this.isConnected = true;
 
-          // Setup parser for incoming data
-          this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
-          
-          // Listen for data continuously
-          this.parser.on('data', (data: string) => {
-            try {
-              console.log('Raw data received:', data);
-              const reading = this.parseCSVData(data.trim());
-              if (reading) {
-                this.emit('sensorData', reading);
+          // Setup parser for incoming data - FIX: Check for null port
+          if (this.port) {
+            this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\n' }));
+            
+            // Listen for data continuously
+            this.parser.on('data', (data: string) => {
+              try {
+                console.log('Raw data received:', data);
+                const reading = this.parseCSVData(data.trim());
+                if (reading) {
+                  this.emit('sensorData', reading);
+                }
+              } catch (error) {
+                console.error('Error parsing data:', error);
               }
-            } catch (error) {
-              console.error('Error parsing data:', error);
-            }
-          });
-          
-          // Handle port errors
-          this.port.on('error', (err) => {
-            console.error('Serial port error:', err);
-            this.emit('error', err.message);
-          });
-          
-          // Handle port closure
-          this.port.on('close', () => {
-            console.log('Serial port was closed');
-            this.isConnected = false;
-            this.port = null;
-            this.parser = null;
-            this.emit('disconnected');
-          });
+            });
+            
+            // Handle port errors - FIX: Check for null port
+            this.port.on('error', (err) => {
+              console.error('Serial port error:', err);
+              this.emit('error', err.message);
+            });
+            
+            // Handle port closure - FIX: Check for null port
+            this.port.on('close', () => {
+              console.log('Serial port was closed');
+              this.isConnected = false;
+              this.port = null;
+              this.parser = null;
+              this.emit('disconnected');
+            });
+          }
 
           resolve();
         });
