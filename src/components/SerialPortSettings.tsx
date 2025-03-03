@@ -36,6 +36,7 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   const isInitialMount = useRef(true);
   const manualConnectionAttempt = useRef(false);
   const connectedPortRef = useRef<string>("");
+  const userSelectedPort = useRef<string>("");
 
   useEffect(() => {
     // Only create a socket connection if we don't already have one
@@ -89,15 +90,21 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
       console.log('Available ports:', ports);
       setAvailablePorts(ports);
       
-      // Only set the selected port if it's not already set 
-      // or if the currently selected port is no longer available
+      // Only set the selected port in specific circumstances
       if (ports.length > 0) {
-        if (!selectedPort || !ports.includes(selectedPort)) {
+        if (!selectedPort || selectedPort === "") {
+          // If user has manually selected a port, prioritize that
+          if (userSelectedPort.current && ports.includes(userSelectedPort.current)) {
+            setSelectedPort(userSelectedPort.current);
+            onPortChange(userSelectedPort.current);
+          }
           // If we have a connected port, prioritize that
-          if (connectedPortRef.current && ports.includes(connectedPortRef.current)) {
+          else if (connectedPortRef.current && ports.includes(connectedPortRef.current)) {
             setSelectedPort(connectedPortRef.current);
             onPortChange(connectedPortRef.current);
-          } else if (!selectedPort) {
+          }
+          // Only set default when there's nothing selected yet
+          else if (!selectedPort) {
             setSelectedPort(ports[0]);
             onPortChange(ports[0]);
           }
@@ -119,6 +126,9 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
       // Update connected port reference
       if (status.connected && status.port) {
         connectedPortRef.current = status.port;
+        // When connected, ensure the selected port in the UI matches the connected port
+        setSelectedPort(status.port);
+        userSelectedPort.current = status.port;
       } else {
         connectedPortRef.current = "";
       }
@@ -193,6 +203,9 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   };
 
   const handlePortChange = (port: string) => {
+    // Store the user's selection to prevent it from being overridden
+    userSelectedPort.current = port;
+    
     // If the port is different and we're connected, disconnect first
     if (port !== selectedPort && connectionStatus.connected) {
       if (socketRef.current) {
@@ -211,71 +224,73 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   };
 
   return (
-    <div className="flex gap-4 items-center bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-lg p-4 shadow-sm">
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-gray-700">Port</label>
-        <Select value={selectedPort} onValueChange={handlePortChange}>
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select port" />
-          </SelectTrigger>
-          <SelectContent className="bg-white">
-            {availablePorts.length > 0 ? (
-              availablePorts.map((port) => (
-                <SelectItem key={port} value={port}>
-                  {port}
+    <div className="flex justify-center">
+      <div className="flex gap-4 items-center bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-lg p-4 shadow-sm">
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-gray-700">Port</label>
+          <Select value={selectedPort} onValueChange={handlePortChange}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select port" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              {availablePorts.length > 0 ? (
+                availablePorts.map((port) => (
+                  <SelectItem key={port} value={port}>
+                    {port}
+                  </SelectItem>
+                ))
+              ) : (
+                <SelectItem value="no-ports" disabled>
+                  No ports available
                 </SelectItem>
-              ))
-            ) : (
-              <SelectItem value="no-ports" disabled>
-                No ports available
-              </SelectItem>
-            )}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-gray-700">Baud Rate</label>
-        <Select
-          value={selectedBaudRate.toString()}
-          onValueChange={handleBaudRateChange}
-        >
-          <SelectTrigger className="w-[200px]">
-            <SelectValue placeholder="Select baud rate" />
-          </SelectTrigger>
-          <SelectContent className="bg-white">
-            {BAUD_RATES.map((rate) => (
-              <SelectItem key={rate} value={rate.toString()}>
-                {rate}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="flex flex-col gap-2">
-        {connectionStatus.connected ? (
-          <Button 
-            variant="outline"  // Changed from "destructive" to "outline"
-            onClick={handleDisconnect}
-            disabled={isConnecting}
-            className="border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700"
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-gray-700">Baud Rate</label>
+          <Select
+            value={selectedBaudRate.toString()}
+            onValueChange={handleBaudRateChange}
           >
-            Disconnect
-          </Button>
-        ) : (
-          <Button 
-            variant="default" 
-            onClick={handleConnect}
-            disabled={isConnecting || !selectedPort}
-          >
-            {isConnecting ? "Connecting..." : "Connect"}
-          </Button>
-        )}
-        <div className="text-sm flex items-center">
-          Status: {connectionStatus.connected ? (
-            <span className="text-green-600 ml-1">● Connected</span>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select baud rate" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              {BAUD_RATES.map((rate) => (
+                <SelectItem key={rate} value={rate.toString()}>
+                  {rate}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2">
+          {connectionStatus.connected ? (
+            <Button 
+              variant="outline"
+              onClick={handleDisconnect}
+              disabled={isConnecting}
+              className="border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700"
+            >
+              Disconnect
+            </Button>
           ) : (
-            <span className="text-red-600 ml-1">● Disconnected</span>
+            <Button 
+              variant="default" 
+              onClick={handleConnect}
+              disabled={isConnecting || !selectedPort}
+            >
+              {isConnecting ? "Connecting..." : "Connect"}
+            </Button>
           )}
+          <div className="text-sm flex items-center">
+            Status: {connectionStatus.connected ? (
+              <span className="text-green-600 ml-1">● Connected</span>
+            ) : (
+              <span className="text-red-600 ml-1">● Disconnected</span>
+            )}
+          </div>
         </div>
       </div>
     </div>
