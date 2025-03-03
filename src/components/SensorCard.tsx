@@ -14,8 +14,10 @@ interface SensorCardProps {
 export function SensorCard({ type, value, timestamp, onClick, isSelected }: SensorCardProps) {
   const config = SENSOR_CONFIG[type];
   
-  // Format value correctly based on sensor type
-  const displayValue = type === 'humidity' ? value / 10 : 
+  // For humidity, the backend sends a value like 5663 which should be displayed as 56.63%
+  // For pressure, the backend sends a value like 100001 which should be displayed as 1000.01 hPa
+  // For other sensors, use the value as is
+  const displayValue = type === 'humidity' ? value / 100 : 
                        type === 'pressure' ? value / 100 : 
                        value;
 

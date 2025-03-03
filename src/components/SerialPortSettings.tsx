@@ -18,6 +18,7 @@ interface SerialPortSettingsProps {
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200];
 const BACKEND_URL = 'http://localhost:3001';
+const TOAST_DURATION = 3000; // 3 seconds
 
 export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPortSettingsProps) {
   const [availablePorts, setAvailablePorts] = useState<string[]>([]);
@@ -34,6 +35,7 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   const socketRef = useRef<Socket | null>(null);
   const isInitialMount = useRef(true);
   const manualConnectionAttempt = useRef(false);
+  const connectedPortRef = useRef<string>("");
 
   useEffect(() => {
     // Only create a socket connection if we don't already have one
@@ -77,6 +79,7 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
         toast({
           title: "Connected to server",
           description: "Server connection established",
+          duration: TOAST_DURATION,
         });
       }
       isInitialMount.current = false;
@@ -85,9 +88,20 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
     newSocket.on('availablePorts', (ports: string[]) => {
       console.log('Available ports:', ports);
       setAvailablePorts(ports);
-      if (ports.length > 0 && !selectedPort) {
-        setSelectedPort(ports[0]);
-        onPortChange(ports[0]);
+      
+      // Only set the selected port if it's not already set 
+      // or if the currently selected port is no longer available
+      if (ports.length > 0) {
+        if (!selectedPort || !ports.includes(selectedPort)) {
+          // If we have a connected port, prioritize that
+          if (connectedPortRef.current && ports.includes(connectedPortRef.current)) {
+            setSelectedPort(connectedPortRef.current);
+            onPortChange(connectedPortRef.current);
+          } else if (!selectedPort) {
+            setSelectedPort(ports[0]);
+            onPortChange(ports[0]);
+          }
+        }
       }
     });
 
@@ -102,11 +116,19 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
       setIsConnecting(false);
       lastConnectionTime.current = now;
       
+      // Update connected port reference
+      if (status.connected && status.port) {
+        connectedPortRef.current = status.port;
+      } else {
+        connectedPortRef.current = "";
+      }
+      
       // Only show connection toast on manual connection
       if (status.connected && manualConnectionAttempt.current) {
         toast({
           title: "Connected",
           description: `Connected to ${status.port} at ${status.baudRate} baud`,
+          duration: TOAST_DURATION,
         });
         manualConnectionAttempt.current = false;
       } 
@@ -116,6 +138,7 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
           title: "Disconnected",
           description: "Serial connection closed",
           variant: "destructive",
+          duration: TOAST_DURATION,
         });
       }
     });
@@ -136,6 +159,7 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
           title: "Error",
           description: error,
           variant: "destructive",
+          duration: TOAST_DURATION,
         });
         manualConnectionAttempt.current = false;
       }
@@ -164,10 +188,18 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   const handleDisconnect = () => {
     if (socketRef.current) {
       socketRef.current.emit('disconnectPort');
+      connectedPortRef.current = "";
     }
   };
 
   const handlePortChange = (port: string) => {
+    // If the port is different and we're connected, disconnect first
+    if (port !== selectedPort && connectionStatus.connected) {
+      if (socketRef.current) {
+        socketRef.current.emit('disconnectPort');
+      }
+    }
+    
     setSelectedPort(port);
     onPortChange(port);
   };
@@ -222,9 +254,10 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
       <div className="flex flex-col gap-2">
         {connectionStatus.connected ? (
           <Button 
-            variant="destructive" 
+            variant="outline"  // Changed from "destructive" to "outline"
             onClick={handleDisconnect}
             disabled={isConnecting}
+            className="border-orange-300 bg-orange-50 hover:bg-orange-100 text-orange-700"
           >
             Disconnect
           </Button>

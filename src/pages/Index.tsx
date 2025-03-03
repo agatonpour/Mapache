@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import RaccoonbotLogo from '../../Raccoonbot-Logo.png';
 
 const BACKEND_URL = 'http://localhost:3001';
+const TOAST_DURATION = 3000; // 3 seconds
 
 export default function Index() {
   const { toast } = useToast();
@@ -81,6 +82,7 @@ export default function Index() {
         toast({
           title: "Connected to server",
           description: "Server connection established",
+          duration: TOAST_DURATION,
         });
       }
       connectAttemptsRef.current++;
@@ -101,6 +103,7 @@ export default function Index() {
           title: "Error",
           description: "Failed to connect to server",
           variant: "destructive",
+          duration: TOAST_DURATION,
         });
         setSensorConnected(false);
       }
