@@ -14,8 +14,12 @@ interface SensorCardProps {
 export function SensorCard({ type, value, timestamp, onClick, isSelected }: SensorCardProps) {
   const config = SENSOR_CONFIG[type];
   
-  // Format value correctly based on sensor type (pressure is divided by 100, humidity is already divided by 10 in serial-service.ts)
-  const displayValue = type === 'pressure' ? value / 100 : value;
+  // Format value correctly based on sensor type
+  // For humidity, divide by 10 to get correct percentage
+  // For pressure, divide by 100 to get correct value
+  const displayValue = type === 'pressure' ? value / 100 : 
+                       type === 'humidity' ? value / 10 : 
+                       value;
 
   return (
     <motion.div

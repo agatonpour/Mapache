@@ -24,6 +24,9 @@ const io = new Server(server, {
 let activePort: string | null = null;
 let activeBaudRate: number | null = null;
 let isConnectingToPort = false;
+// Track last connection/disconnection time to prevent rapid toggling
+let lastPortOperationTime = 0;
+const PORT_OPERATION_DEBOUNCE = 1000; // 1 second debounce
 const activeClients = new Set<string>();
 
 // Listen for socket connections
@@ -68,20 +71,43 @@ io.on('connection', (socket) => {
       socket.emit('availablePorts', portPaths);
     } catch (error) {
       console.error('Error listing ports:', error);
-      socket.emit('error', 'Failed to list available ports');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      socket.emit('error', `Failed to list available ports: ${errorMessage}`);
     }
   });
 
-  // Connect to a serial port
+  // Connect to a serial port with debounce
   socket.on('connectToPort', async (portPath, baudRate) => {
+    const now = Date.now();
+    if (now - lastPortOperationTime < PORT_OPERATION_DEBOUNCE) {
+      console.log('Debouncing port connection request');
+      return;
+    }
+    
     if (isConnectingToPort) {
       socket.emit('error', 'Already attempting to connect to a port');
       return;
     }
 
+    if (serialService.isPortConnected() && activePort === portPath) {
+      console.log(`Already connected to port ${portPath}`);
+      socket.emit('connectionStatus', {
+        connected: true,
+        port: portPath,
+        baudRate: activeBaudRate
+      });
+      return;
+    }
+
     try {
       isConnectingToPort = true;
+      lastPortOperationTime = now;
       console.log(`Attempting to connect to port: ${portPath} at ${baudRate} baud`);
+      
+      // If already connected to a different port, disconnect first
+      if (serialService.isPortConnected()) {
+        await serialService.disconnect();
+      }
       
       await serialService.connect(portPath, baudRate);
       
@@ -105,8 +131,16 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Disconnect from serial port
+  // Disconnect from serial port with debounce
   socket.on('disconnectPort', async () => {
+    const now = Date.now();
+    if (now - lastPortOperationTime < PORT_OPERATION_DEBOUNCE) {
+      console.log('Debouncing port disconnection request');
+      return;
+    }
+    
+    lastPortOperationTime = now;
+    
     try {
       await serialService.disconnect();
       socket.emit('connectionStatus', { connected: false });
