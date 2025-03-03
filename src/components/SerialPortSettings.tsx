@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import {
   Select,
@@ -29,21 +29,57 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
-  const [lastErrorTime, setLastErrorTime] = useState(0);
-  const [lastConnectionTime, setLastConnectionTime] = useState(0);
+  const lastErrorTime = useRef(0);
+  const lastConnectionTime = useRef(0);
+  const socketRef = useRef<Socket | null>(null);
+  const isInitialMount = useRef(true);
+  const manualConnectionAttempt = useRef(false);
 
   useEffect(() => {
-    const newSocket = io(BACKEND_URL, {
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      timeout: 5000
-    });
-    setSocket(newSocket);
+    // Only create a socket connection if we don't already have one
+    if (!socketRef.current) {
+      console.log("Creating new socket connection");
+      const newSocket = io(BACKEND_URL, {
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        timeout: 5000,
+        // Prevent automatic reconnection attempts
+        reconnection: true
+      });
+      
+      socketRef.current = newSocket;
+      setSocket(newSocket);
 
+      // Setup socket event listeners only once
+      setupSocketListeners(newSocket);
+      
+      return () => {
+        console.log("Cleaning up socket connection");
+        if (socketRef.current) {
+          if (connectionStatus.connected) {
+            socketRef.current.emit('disconnectPort');
+          }
+          socketRef.current.disconnect();
+          socketRef.current = null;
+        }
+      };
+    }
+  }, []);
+
+  const setupSocketListeners = (newSocket: Socket) => {
     newSocket.on('connect', () => {
       console.log('Connected to server');
       // Request available ports when connected
       newSocket.emit('getPorts');
+      
+      // Only show toast on manual reconnection, not on initial connection
+      if (!isInitialMount.current) {
+        toast({
+          title: "Connected to server",
+          description: "Server connection established",
+        });
+      }
+      isInitialMount.current = false;
     });
 
     newSocket.on('availablePorts', (ports: string[]) => {
@@ -58,20 +94,24 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
     newSocket.on('connectionStatus', (status: {connected: boolean, port?: string, baudRate?: number}) => {
       // Prevent rapid toggling of connection status
       const now = Date.now();
-      if (now - lastConnectionTime < 1000) {
+      if (now - lastConnectionTime.current < 1000) {
         return;
       }
       
       setConnectionStatus(status);
       setIsConnecting(false);
-      setLastConnectionTime(now);
+      lastConnectionTime.current = now;
       
-      if (status.connected) {
+      // Only show connection toast on manual connection
+      if (status.connected && manualConnectionAttempt.current) {
         toast({
           title: "Connected",
           description: `Connected to ${status.port} at ${status.baudRate} baud`,
         });
-      } else {
+        manualConnectionAttempt.current = false;
+      } 
+      // Only show disconnection toast on unexpected disconnection when previously connected
+      else if (!status.connected && connectionStatus.connected) {
         toast({
           title: "Disconnected",
           description: "Serial connection closed",
@@ -83,18 +123,22 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
     newSocket.on('error', (error: string) => {
       // Debounce errors to prevent toast flood
       const now = Date.now();
-      if (now - lastErrorTime < 2000) {
+      if (now - lastErrorTime.current < 2000) {
         return;
       }
       
       setIsConnecting(false);
-      setLastErrorTime(now);
+      lastErrorTime.current = now;
       
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
+      // Only show error toast for manual connection attempts
+      if (manualConnectionAttempt.current) {
+        toast({
+          title: "Error",
+          description: error,
+          variant: "destructive",
+        });
+        manualConnectionAttempt.current = false;
+      }
     });
 
     // Request port list immediately and every 5 seconds
@@ -106,26 +150,20 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
 
     return () => {
       clearInterval(intervalId);
-      // Properly clean up the socket connection
-      if (newSocket) {
-        if (connectionStatus.connected) {
-          newSocket.emit('disconnectPort');
-        }
-        newSocket.disconnect();
-      }
     };
-  }, [onPortChange, toast, lastConnectionTime, lastErrorTime]);
+  };
 
   const handleConnect = () => {
-    if (socket && selectedPort && selectedBaudRate) {
+    if (socketRef.current && selectedPort && selectedBaudRate) {
+      manualConnectionAttempt.current = true;
       setIsConnecting(true);
-      socket.emit('connectToPort', selectedPort, selectedBaudRate);
+      socketRef.current.emit('connectToPort', selectedPort, selectedBaudRate);
     }
   };
 
   const handleDisconnect = () => {
-    if (socket) {
-      socket.emit('disconnectPort');
+    if (socketRef.current) {
+      socketRef.current.emit('disconnectPort');
     }
   };
 

@@ -1,7 +1,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import { SensorCard } from "@/components/SensorCard";
 import { SensorGraph } from "@/components/SensorGraph";
 import { TimeframeSelector } from "@/components/TimeframeSelector";
@@ -19,7 +19,8 @@ export default function Index() {
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const errorToastShown = useRef(false);
   const [sensorConnected, setSensorConnected] = useState(false);
-  const socketRef = useRef<any>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const connectAttemptsRef = useRef(0);
 
   // Store all sensor data since the app started
   const allSensorData = useRef<Record<SensorType, SensorData[]>>(
@@ -56,30 +57,44 @@ export default function Index() {
   };
 
   useEffect(() => {
-    // Cleanup previous connection if exists
+    // Don't recreate socket connections repeatedly
     if (socketRef.current) {
-      socketRef.current.disconnect();
+      return;
     }
     
     const socket = io(BACKEND_URL, {
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      timeout: 5000
+      timeout: 5000,
+      // Don't reconnect automatically
+      reconnection: true,
     });
+    
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('Connected to socket server');
       errorToastShown.current = false;
-      if (!sensorConnected) {
+      
+      // Prevent repeated connection toasts
+      if (connectAttemptsRef.current > 0) {
         toast({
           title: "Connected to server",
           description: "Server connection established",
         });
-        setSensorConnected(true);
       }
+      connectAttemptsRef.current++;
+      setSensorConnected(true);
     });
 
-    socket.on('connect_error', () => {
+    socket.on('disconnect', () => {
+      console.log('Disconnected from socket server');
+      // Don't show disconnection toasts for socket server
+    });
+
+    socket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+      
       if (!errorToastShown.current) {
         errorToastShown.current = true;
         toast({
@@ -126,11 +141,12 @@ export default function Index() {
     });
 
     return () => {
-      if (socket) {
-        socket.disconnect();
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
       }
     };
-  }, [toast, timeframe]);
+  }, [toast]);
 
   // Function to update graph data when timeframe changes
   const updateGraphData = () => {
