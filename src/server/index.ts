@@ -97,7 +97,8 @@ io.on('connection', (socket) => {
     } catch (error) {
       console.error('Error connecting to port:', error);
       isConnectingToPort = false;
-      // Fix: properly handle the unknown error type
+      
+      // Fix: Properly handle the unknown error type
       const errorMessage = error instanceof Error ? error.message : String(error);
       socket.emit('error', `Failed to connect to port ${portPath}: ${errorMessage}`);
       socket.emit('connectionStatus', { connected: false });
