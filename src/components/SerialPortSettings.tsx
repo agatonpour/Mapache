@@ -29,9 +29,15 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
   });
   const [isConnecting, setIsConnecting] = useState(false);
   const { toast } = useToast();
+  const [lastErrorTime, setLastErrorTime] = useState(0);
+  const [lastConnectionTime, setLastConnectionTime] = useState(0);
 
   useEffect(() => {
-    const newSocket = io(BACKEND_URL);
+    const newSocket = io(BACKEND_URL, {
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 5000
+    });
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
@@ -50,8 +56,15 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
     });
 
     newSocket.on('connectionStatus', (status: {connected: boolean, port?: string, baudRate?: number}) => {
+      // Prevent rapid toggling of connection status
+      const now = Date.now();
+      if (now - lastConnectionTime < 1000) {
+        return;
+      }
+      
       setConnectionStatus(status);
       setIsConnecting(false);
+      setLastConnectionTime(now);
       
       if (status.connected) {
         toast({
@@ -68,7 +81,15 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
     });
 
     newSocket.on('error', (error: string) => {
+      // Debounce errors to prevent toast flood
+      const now = Date.now();
+      if (now - lastErrorTime < 2000) {
+        return;
+      }
+      
       setIsConnecting(false);
+      setLastErrorTime(now);
+      
       toast({
         title: "Error",
         description: error,
@@ -76,7 +97,15 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
       });
     });
 
+    // Request port list immediately and every 5 seconds
+    const intervalId = setInterval(() => {
+      if (newSocket.connected) {
+        newSocket.emit('getPorts');
+      }
+    }, 5000);
+
     return () => {
+      clearInterval(intervalId);
       // Properly clean up the socket connection
       if (newSocket) {
         if (connectionStatus.connected) {
@@ -85,7 +114,7 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
         newSocket.disconnect();
       }
     };
-  }, [onPortChange, toast]);
+  }, [onPortChange, toast, lastConnectionTime, lastErrorTime]);
 
   const handleConnect = () => {
     if (socket && selectedPort && selectedBaudRate) {
@@ -119,12 +148,18 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Select port" />
           </SelectTrigger>
-          <SelectContent>
-            {availablePorts.map((port) => (
-              <SelectItem key={port} value={port}>
-                {port}
+          <SelectContent className="bg-white">
+            {availablePorts.length > 0 ? (
+              availablePorts.map((port) => (
+                <SelectItem key={port} value={port}>
+                  {port}
+                </SelectItem>
+              ))
+            ) : (
+              <SelectItem value="no-ports" disabled>
+                No ports available
               </SelectItem>
-            ))}
+            )}
           </SelectContent>
         </Select>
       </div>
@@ -137,7 +172,7 @@ export function SerialPortSettings({ onPortChange, onBaudRateChange }: SerialPor
           <SelectTrigger className="w-[200px]">
             <SelectValue placeholder="Select baud rate" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white">
             {BAUD_RATES.map((rate) => (
               <SelectItem key={rate} value={rate.toString()}>
                 {rate}
