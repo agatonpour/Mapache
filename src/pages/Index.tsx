@@ -120,16 +120,9 @@ export default function Index() {
         allSensorData.current[typedType].push(dataPoint);
       });
     
-      // Update filtered data for all sensors based on current timeframe
-      setFilteredSensorData((prev) => ({
-        ...prev,
-        ...Object.fromEntries(
-          Object.keys(SENSOR_CONFIG).map((type) => [
-            type,
-            filterDataByTimeframe(allSensorData.current[type as SensorType] || [], timeframe)
-          ])
-        ),
-      }));
+      // Update filtered data for the current selected sensor based on current timeframe
+      // This is the key fix - we're now maintaining the user's timeframe selection
+      updateGraphData();
     });
 
     return () => {
@@ -140,23 +133,24 @@ export default function Index() {
     };
   }, [toast]);
 
-  // Function to update graph data when timeframe changes
+  // Function to update graph data when timeframe or selected sensor changes
   const updateGraphData = () => {
-    setFilteredSensorData((prev) => ({
-      ...prev,
-      ...Object.fromEntries(
-        Object.keys(SENSOR_CONFIG).map((type) => [
-          type,
-          filterDataByTimeframe(allSensorData.current[type as SensorType] || [], timeframe)
-        ])
-      ),
-    }));
+    // Create a new object with filtered data for all sensors
+    const newFilteredData = Object.fromEntries(
+      Object.keys(SENSOR_CONFIG).map((type) => [
+        type,
+        filterDataByTimeframe(allSensorData.current[type as SensorType] || [], timeframe)
+      ])
+    ) as Record<SensorType, SensorData[]>;
+    
+    setFilteredSensorData(newFilteredData);
   };
 
-  // Update the data immediately when timeframe changes
+  // Update the data when timeframe or selected sensor changes
   useEffect(() => {
+    console.log(`Timeframe changed to: ${timeframe} or sensor changed to: ${selectedSensor}`);
     updateGraphData();
-  }, [timeframe]);
+  }, [timeframe, selectedSensor]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -184,7 +178,7 @@ export default function Index() {
           <SensorHistory 
             selectedSensor={selectedSensor} 
             timeframe={timeframe} 
-            data={filteredSensorData[selectedSensor]} 
+            data={filteredSensorData[selectedSensor] || []} 
             onTimeframeChange={setTimeframe} 
           />
         </motion.div>
@@ -192,4 +186,3 @@ export default function Index() {
     </div>
   );
 }
-
