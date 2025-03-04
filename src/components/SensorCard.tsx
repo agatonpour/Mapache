@@ -16,10 +16,12 @@ export function SensorCard({ type, value, timestamp, onClick, isSelected }: Sens
   
   // For humidity, the backend sends a value like 5663 which should be displayed as 56.63%
   // For pressure, the backend sends a value like 100001 which should be displayed as 1000.01 hPa
-  // For other sensors, use the value as is
-  const displayValue = type === 'humidity' ? value / 100 : 
-                       type === 'pressure' ? value / 100 : 
-                       value;
+  // For temperature, the backend sends a value like 1520 which should be displayed as 15.2°C
+  const displayValue = 
+    type === 'humidity' ? value : 
+    type === 'pressure' ? value : 
+    type === 'temperature' ? value :
+    value;
 
   return (
     <motion.div
