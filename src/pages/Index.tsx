@@ -21,6 +21,7 @@ export default function Index() {
   const [sensorConnected, setSensorConnected] = useState(false);
   const socketRef = useRef<Socket | null>(null);
   const connectAttemptsRef = useRef(0);
+  const currentTimeframeRef = useRef<Timeframe>("3m");
 
   // Store all sensor data since the app started
   const allSensorData = useRef<Record<SensorType, SensorData[]>>(
@@ -45,6 +46,11 @@ export default function Index() {
     const cutoffTime = now.getTime() - timeframeDurations[selectedTimeframe];
     return data.filter((point) => point.timestamp.getTime() > cutoffTime);
   };
+
+  // Update currentTimeframeRef whenever timeframe changes
+  useEffect(() => {
+    currentTimeframeRef.current = timeframe;
+  }, [timeframe]);
 
   useEffect(() => {
     // Don't recreate socket connections repeatedly
@@ -121,8 +127,8 @@ export default function Index() {
       });
     
       // When new data arrives, update the filtered data
-      // but make sure we strictly follow the current timeframe
-      updateGraphData();
+      // Use the currently selected timeframe from the ref to ensure consistency
+      updateGraphData(currentTimeframeRef.current);
     });
 
     return () => {
@@ -134,7 +140,9 @@ export default function Index() {
   }, [toast]);
 
   // Function to update graph data when timeframe or selected sensor changes
-  const updateGraphData = () => {
+  const updateGraphData = (selectedTimeframe: Timeframe = timeframe) => {
+    console.log(`Updating graph data with timeframe: ${selectedTimeframe}`);
+    
     // Get the current time for accurate filtering
     const now = new Date();
     
@@ -146,7 +154,7 @@ export default function Index() {
         const data = allSensorData.current[sensorType] || [];
         return [
           sensorType,
-          filterDataByTimeframe(data, timeframe)
+          filterDataByTimeframe(data, selectedTimeframe)
         ];
       })
     ) as Record<SensorType, SensorData[]>;
@@ -157,7 +165,7 @@ export default function Index() {
   // Update the data when timeframe or selected sensor changes
   useEffect(() => {
     console.log(`Timeframe changed to: ${timeframe} or sensor changed to: ${selectedSensor}`);
-    updateGraphData();
+    updateGraphData(timeframe);
   }, [timeframe, selectedSensor]);
 
   return (
