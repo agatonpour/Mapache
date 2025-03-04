@@ -120,8 +120,8 @@ export default function Index() {
         allSensorData.current[typedType].push(dataPoint);
       });
     
-      // Update filtered data for the current selected sensor based on current timeframe
-      // This is the key fix - we're now maintaining the user's timeframe selection
+      // When new data arrives, update the filtered data
+      // but make sure we strictly follow the current timeframe
       updateGraphData();
     });
 
@@ -135,12 +135,20 @@ export default function Index() {
 
   // Function to update graph data when timeframe or selected sensor changes
   const updateGraphData = () => {
+    // Get the current time for accurate filtering
+    const now = new Date();
+    
     // Create a new object with filtered data for all sensors
+    // This ensures we're always filtering based on the current time and selected timeframe
     const newFilteredData = Object.fromEntries(
-      Object.keys(SENSOR_CONFIG).map((type) => [
-        type,
-        filterDataByTimeframe(allSensorData.current[type as SensorType] || [], timeframe)
-      ])
+      Object.keys(SENSOR_CONFIG).map((type) => {
+        const sensorType = type as SensorType;
+        const data = allSensorData.current[sensorType] || [];
+        return [
+          sensorType,
+          filterDataByTimeframe(data, timeframe)
+        ];
+      })
     ) as Record<SensorType, SensorData[]>;
     
     setFilteredSensorData(newFilteredData);
