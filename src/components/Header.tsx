@@ -10,8 +10,9 @@ export function Header() {
         Mapache: The Raccoonbot Interface App
       </h1>
       <p className="text-gray-500">
-        Real-time Environmental Monitoring
+        Environmental monitoring 2.0
       </p>
     </div>
   );
 }
+

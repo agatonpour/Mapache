@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { SENSOR_CONFIG, type SensorType } from "@/lib/mock-data";
@@ -14,13 +13,9 @@ interface SensorCardProps {
 export function SensorCard({ type, value, timestamp, onClick, isSelected }: SensorCardProps) {
   const config = SENSOR_CONFIG[type];
   
-  // For humidity, the backend sends a value like 5663 which should be displayed as 56.63%
-  // For pressure, the backend sends a value like 100001 which should be displayed as 1000.01 hPa
-  // For temperature, the backend sends a value like 1520 which should be displayed as 15.2°C
+  // Format the display value based on sensor type
   const displayValue = 
-    type === 'humidity' ? value : 
-    type === 'pressure' ? value : 
-    type === 'temperature' ? value :
+    type === 'pressure' ? value / 100 : // Convert pressure to hPa
     value;
 
   return (

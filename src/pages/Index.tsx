@@ -169,7 +169,10 @@ export default function Index() {
           <Header />
 
           <div className="flex justify-center">
-            <SerialPortSettings />
+            <SerialPortSettings 
+              onPortChange={() => {}} 
+              onBaudRateChange={() => {}}
+            />
           </div>
 
           <SensorGrid 
@@ -189,3 +192,4 @@ export default function Index() {
     </div>
   );
 }
+
