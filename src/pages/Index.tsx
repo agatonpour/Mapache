@@ -2,14 +2,13 @@
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { io, Socket } from "socket.io-client";
-import { SensorCard } from "@/components/SensorCard";
-import { SensorGraph } from "@/components/SensorGraph";
-import { TimeframeSelector } from "@/components/TimeframeSelector";
 import { SerialPortSettings } from "@/components/SerialPortSettings";
+import { Header } from "@/components/Header";
+import { SensorGrid } from "@/components/SensorGrid";
+import { SensorHistory } from "@/components/SensorHistory";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import RaccoonbotLogo from '../../Raccoonbot-Logo.png';
 
 const BACKEND_URL = 'http://localhost:3001';
 const TOAST_DURATION = 3000; // 3 seconds
@@ -31,16 +30,6 @@ export default function Index() {
   const [filteredSensorData, setFilteredSensorData] = useState<Record<SensorType, SensorData[]>>(
     Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
   );
-
-  const handlePortChange = (port: string) => {
-    // This would be handled by your backend
-    console.log("Selected port:", port);
-  };
-
-  const handleBaudRateChange = (baudRate: number) => {
-    // This would be handled by your backend
-    console.log("Selected baud rate:", baudRate);
-  };
 
   // Function to filter data based on timeframe
   const filterDataByTimeframe = (data: SensorData[], selectedTimeframe: Timeframe) => {
@@ -169,34 +158,6 @@ export default function Index() {
     updateGraphData();
   }, [timeframe]);
 
-  const handleDownloadData = () => {
-    const selectedData = filteredSensorData[selectedSensor];
-  
-    if (!selectedData || selectedData.length === 0) {
-      alert("No data available for the selected timeframe.");
-      return;
-    }
-  
-    // Include the unit in the Value column header
-    const unit = SENSOR_CONFIG[selectedSensor].unit;
-    let csvContent = `Date,Time,Value (${unit})\n`;
-    selectedData.forEach((point) => {
-      const date = point.timestamp.toLocaleDateString();
-      const time = point.timestamp.toLocaleTimeString();
-      csvContent += `${date},${time},${point.value}\n`;
-    });
-  
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-  
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${selectedSensor}_data_${timeframe}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
       <div className="container max-w-7xl mx-auto px-4 py-8">
@@ -205,54 +166,24 @@ export default function Index() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-8"
         >
-          <div className="text-center space-y-2">
-            <img src={RaccoonbotLogo} alt="Raccoonbot Logo" className="mx-auto" style={{ width: '250px', height: 'auto' }}/>
-            <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-              Mapache: The Raccoonbot Interface App
-            </h1>
-            <p className="text-gray-500">
-              Real-time Environmental Monitoring
-            </p>
+          <Header />
+
+          <div className="flex justify-center">
+            <SerialPortSettings />
           </div>
 
-          <SerialPortSettings
-            onPortChange={handlePortChange}
-            onBaudRateChange={handleBaudRateChange}
+          <SensorGrid 
+            sensorData={filteredSensorData} 
+            selectedSensor={selectedSensor} 
+            onSensorSelect={setSelectedSensor} 
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(SENSOR_CONFIG).map(([type]) => (
-              <SensorCard
-                key={type}
-                type={type as SensorType}
-                value={filteredSensorData[type as SensorType]?.at(-1)?.value || 0}
-                timestamp={filteredSensorData[type as SensorType]?.at(-1)?.timestamp || new Date()}
-                onClick={() => setSelectedSensor(type as SensorType)}
-                isSelected={selectedSensor === type}
-              />
-            ))}
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div className="text-lg font-medium text-gray-900">
-                {SENSOR_CONFIG[selectedSensor].label} History
-              </div>
-              <div className="flex justify-end">
-                <button 
-                  onClick={handleDownloadData} 
-                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-                >
-                  Download Data
-                </button>
-              </div>
-              <TimeframeSelector value={timeframe} onChange={setTimeframe} />
-            </div>
-
-            <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl p-4 shadow-sm">
-              <SensorGraph data={filteredSensorData[selectedSensor]} type={selectedSensor} />
-            </div>
-          </div>
+          <SensorHistory 
+            selectedSensor={selectedSensor} 
+            timeframe={timeframe} 
+            data={filteredSensorData[selectedSensor]} 
+            onTimeframeChange={setTimeframe} 
+          />
         </motion.div>
       </div>
     </div>
