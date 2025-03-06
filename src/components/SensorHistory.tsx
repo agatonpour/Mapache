@@ -10,6 +10,7 @@ interface SensorHistoryProps {
   selectedSensor: SensorType;
   timeframe: Timeframe;
   data: SensorData[];
+  allSensorData: Record<SensorType, SensorData[]>;
   onTimeframeChange: (value: Timeframe) => void;
 }
 
@@ -17,6 +18,7 @@ export function SensorHistory({
   selectedSensor, 
   timeframe, 
   data, 
+  allSensorData,
   onTimeframeChange 
 }: SensorHistoryProps) {
   return (
@@ -25,11 +27,18 @@ export function SensorHistory({
         <div className="text-lg font-medium text-gray-900">
           {SENSOR_CONFIG[selectedSensor].label} History
         </div>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <DataDownloadButton 
             selectedSensor={selectedSensor} 
             timeframe={timeframe} 
             data={data} 
+          />
+          <DataDownloadButton 
+            selectedSensor={selectedSensor} 
+            timeframe={timeframe} 
+            data={data}
+            allSensorData={allSensorData}
+            downloadAll={true}
           />
         </div>
         <TimeframeSelector value={timeframe} onChange={onTimeframeChange} />

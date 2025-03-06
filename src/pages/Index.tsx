@@ -195,6 +195,7 @@ export default function Index() {
             selectedSensor={selectedSensor} 
             timeframe={timeframe} 
             data={filteredSensorData[selectedSensor] || []} 
+            allSensorData={filteredSensorData}
             onTimeframeChange={setTimeframe} 
           />
         </motion.div>
