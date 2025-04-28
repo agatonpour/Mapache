@@ -14,9 +14,19 @@ interface SensorCardProps {
 export function SensorCard({ type, value, timestamp, onClick, isSelected }: SensorCardProps) {
   const config = SENSOR_CONFIG[type];
   
-  // Use the value directly - no need for special formatting
-  // The formatValue function in SENSOR_CONFIG will handle proper display
-  const displayValue = value;
+  // Apply specific transformations for humidity, pressure and AQI
+  let displayValue = value;
+  
+  if (type === "humidity") {
+    // Multiply humidity by 10 to show correct percentage
+    displayValue = value * 10;
+  } else if (type === "pressure") {
+    // Divide pressure by 10 to show correct value
+    displayValue = value / 10;
+  } else if (type === "aqi") {
+    // Ensure AQI is not rounded down to zero
+    displayValue = Math.max(1, value);
+  }
 
   return (
     <motion.div

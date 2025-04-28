@@ -155,11 +155,14 @@ class SerialService extends EventEmitter {
 
       // Based on the Arduino code, the order is:
       // AQI, Temperature, Humidity, Pressure, TVOC, ECO2
+      const aqi = parseInt(values[0]);
+      
       return {
-        aqi: parseInt(values[0]) || 0, // Parse as integer to avoid rounding down
+        // Ensure AQI is never rounded down to 0 if it's 1
+        aqi: aqi === 0 ? 0 : Math.max(1, aqi),
         temperature: parseFloat(values[1]) || 0,
-        humidity: parseFloat(values[2]) || 0, // Don't divide by 10 anymore, use the value directly
-        pressure: parseFloat(values[3]) || 0,
+        humidity: parseFloat(values[2]) || 0, // We'll multiply by 10 in the UI
+        pressure: parseFloat(values[3]) || 0, // We'll divide by 10 in the UI
         tvoc: parseFloat(values[4]) || 0,
         eco2: parseFloat(values[5]) || 0,
         timestamp: Date.now()
