@@ -153,15 +153,15 @@ class SerialService extends EventEmitter {
         return null;
       }
 
-      // Format: index, temp, humidity, pressure, tvoc, eco2, aqi (optional)
-      // e.g.: "1, 24, 401, 100917, 37, 27.10"
+      // Based on the Arduino code, the order is:
+      // AQI, Temperature, Humidity, Pressure, TVOC, ECO2
       return {
+        aqi: parseInt(values[0]) || 0, // Parse as integer to avoid rounding down
         temperature: parseFloat(values[1]) || 0,
-        humidity: parseFloat(values[2]) / 10 || 0, // Divide by 10 to get the correct humidity value
+        humidity: parseFloat(values[2]) || 0, // Don't divide by 10 anymore, use the value directly
         pressure: parseFloat(values[3]) || 0,
         tvoc: parseFloat(values[4]) || 0,
         eco2: parseFloat(values[5]) || 0,
-        aqi: values.length > 6 ? parseFloat(values[6]) || 0 : 0,
         timestamp: Date.now()
       };
     } catch (error) {

@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { io, Socket } from "socket.io-client";
@@ -107,14 +106,17 @@ export default function Index() {
     socket.on("sensorData", (reading) => {
       const now = new Date();
     
-      // New data point
+      console.log("Received sensor data:", reading); // Debug logging
+    
+      // Map Arduino data to sensor types according to the loop() function:
+      // AQI, Temperature, Humidity, Pressure, TVOC, ECO2
       const newData: Partial<Record<SensorType, SensorData>> = {
         aqi: { type: "aqi", value: reading.aqi, timestamp: now },
+        temperature: { type: "temperature", value: reading.temperature, timestamp: now },
+        humidity: { type: "humidity", value: reading.humidity, timestamp: now },
+        pressure: { type: "pressure", value: reading.pressure, timestamp: now },
         tvoc: { type: "tvoc", value: reading.tvoc, timestamp: now },
         eco2: { type: "eco2", value: reading.eco2, timestamp: now },
-        pressure: { type: "pressure", value: reading.pressure, timestamp: now },
-        humidity: { type: "humidity", value: reading.humidity, timestamp: now },
-        temperature: { type: "temperature", value: reading.temperature, timestamp: now },
       };
     
       // Store new data in allSensorData

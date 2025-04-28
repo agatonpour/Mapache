@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { SENSOR_CONFIG, type SensorType } from "@/lib/mock-data";
@@ -13,10 +14,9 @@ interface SensorCardProps {
 export function SensorCard({ type, value, timestamp, onClick, isSelected }: SensorCardProps) {
   const config = SENSOR_CONFIG[type];
   
-  // Format the display value based on sensor type
-  const displayValue = 
-    type === 'pressure' ? value / 100 : // Convert pressure to hPa
-    value;
+  // Use the value directly - no need for special formatting
+  // The formatValue function in SENSOR_CONFIG will handle proper display
+  const displayValue = value;
 
   return (
     <motion.div
