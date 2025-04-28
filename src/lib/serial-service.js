@@ -1,3 +1,4 @@
+
 import { SerialPort } from 'serialport';
 import { ReadlineParser } from '@serialport/parser-readline';
 class SerialService {
@@ -12,20 +13,21 @@ class SerialService {
             });
             this.parser = this.port.pipe(new ReadlineParser());
             this.parser.on('data', (line) => {
-                const [aqi, tvoc, eco2, pressure, humidity, temperature] = line
-                    .trim()
-                    .split(',')
-                    .map(Number);
-                const reading = {
-                    aqi,
-                    tvoc,
-                    eco2,
-                    pressure,
-                    humidity,
-                    temperature,
-                    timestamp: new Date(),
-                };
-                this.notifySubscribers(reading);
+                // Parse CSV data
+                const values = line.trim().split(',').map(val => val.trim());
+                
+                if (values.length >= 6) {
+                    const reading = {
+                        aqi: parseInt(values[0]) || 0, // Parse as integer to avoid rounding down
+                        temperature: parseFloat(values[1]) || 0,
+                        humidity: parseFloat(values[2]) || 0, // Don't divide by 10 anymore
+                        pressure: parseFloat(values[3]) || 0,
+                        tvoc: parseFloat(values[4]) || 0,
+                        eco2: parseFloat(values[5]) || 0,
+                        timestamp: new Date(),
+                    };
+                    this.notifySubscribers(reading);
+                }
             });
             console.log('Connected to serial port:', portPath);
         }
