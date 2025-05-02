@@ -1,61 +1,51 @@
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { SerialPortSettings } from "@/components/SerialPortSettings";
 import { Header } from "@/components/Header";
 import { SensorGrid } from "@/components/SensorGrid";
 import { SensorHistory } from "@/components/SensorHistory";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { fetchReadingsForTimeRange } from "@/lib/firestore-service";
+import { fetchReadingsForDate } from "@/lib/firestore-service";
 
 export default function Index() {
   const { toast } = useToast();
   const [selectedSensor, setSelectedSensor] = useState<SensorType>("temperature");
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const [loading, setLoading] = useState(false);
-  const currentTimeframeRef = useRef<Timeframe>("3m");
   const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
 
-  // Store all sensor data since the app started
-  const [filteredSensorData, setFilteredSensorData] = useState<Record<SensorType, SensorData[]>>(
+  // Store all sensor data
+  const [sensorData, setSensorData] = useState<Record<SensorType, SensorData[]>>(
     Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
   );
 
-  // Function to calculate the time range based on the selected timeframe
-  const calculateTimeRange = (selectedTimeframe: Timeframe) => {
-    const now = new Date();
-    const timeframeDurations: Record<Timeframe, number> = {
-      "3m": 3 * 60 * 1000,
-      "1h": 60 * 60 * 1000,
-      "24h": 24 * 60 * 60 * 1000,
-      "1w": 7 * 24 * 60 * 60 * 1000,
-      "1m": 30 * 24 * 60 * 60 * 1000,
-      "1y": 365 * 24 * 60 * 60 * 1000,
-    };
-    
-    const cutoffTime = new Date(now.getTime() - timeframeDurations[selectedTimeframe]);
-    return { startTime: cutoffTime, endTime: now };
-  };
-
-  // Update currentTimeframeRef whenever timeframe changes
-  useEffect(() => {
-    currentTimeframeRef.current = timeframe;
-    updateGraphData(timeframe);
-  }, [timeframe]);
-
-  // Function to update graph data when timeframe changes
-  const updateGraphData = async (selectedTimeframe: Timeframe = timeframe) => {
-    console.log(`Updating graph data with timeframe: ${selectedTimeframe}`);
+  // Function to fetch data for today
+  const fetchTodaysData = async () => {
+    console.log("Fetching today's data");
     setLoading(true);
     
     try {
-      const { startTime, endTime } = calculateTimeRange(selectedTimeframe);
-      const data = await fetchReadingsForTimeRange(startTime, endTime);
+      // Format today's date as YYYY-MM-DD
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       
-      setFilteredSensorData(data);
+      // For testing, we'll use the specific date from the requirements
+      const testDateStr = "2025-05-02";
+      
+      console.log(`Fetching data for ${testDateStr}`);
+      const data = await fetchReadingsForDate(testDateStr);
+      
+      setSensorData(data);
       setDataLastUpdated(new Date());
+      
+      // Show toast on success
+      toast({
+        title: "Data loaded",
+        description: `Loaded sensor readings for ${testDateStr}`,
+        duration: 3000,
+      });
     } catch (error) {
       console.error("Error fetching sensor data:", error);
       toast({
@@ -69,18 +59,9 @@ export default function Index() {
     }
   };
 
-  // Create an automatic refresh every minute
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      updateGraphData(currentTimeframeRef.current);
-    }, 60000); // Refresh every 60 seconds
-    
-    return () => clearInterval(intervalId);
-  }, []);
-
   // Initial data fetch
   useEffect(() => {
-    updateGraphData();
+    fetchTodaysData();
   }, []);
 
   return (
@@ -104,7 +85,7 @@ export default function Index() {
                 <div className="h-4 w-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
               ) : (
                 <button 
-                  onClick={() => updateGraphData()} 
+                  onClick={fetchTodaysData} 
                   className="text-xs text-blue-600 hover:text-blue-800"
                 >
                   Refresh data
@@ -114,7 +95,7 @@ export default function Index() {
           </div>
 
           <SensorGrid 
-            sensorData={filteredSensorData} 
+            sensorData={sensorData} 
             selectedSensor={selectedSensor} 
             onSensorSelect={setSelectedSensor} 
           />
@@ -122,8 +103,8 @@ export default function Index() {
           <SensorHistory 
             selectedSensor={selectedSensor} 
             timeframe={timeframe} 
-            data={filteredSensorData[selectedSensor] || []} 
-            allSensorData={filteredSensorData}
+            data={sensorData[selectedSensor] || []} 
+            allSensorData={sensorData}
             onTimeframeChange={setTimeframe} 
           />
         </motion.div>
