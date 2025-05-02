@@ -1,6 +1,6 @@
+
 import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
-import { io, Socket } from "socket.io-client";
 import { SerialPortSettings } from "@/components/SerialPortSettings";
 import { Header } from "@/components/Header";
 import { SensorGrid } from "@/components/SensorGrid";
@@ -8,31 +8,23 @@ import { SensorHistory } from "@/components/SensorHistory";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-
-const BACKEND_URL = 'http://localhost:3001';
-const TOAST_DURATION = 3000; // 3 seconds
+import { fetchReadingsForTimeRange } from "@/lib/firestore-service";
 
 export default function Index() {
   const { toast } = useToast();
   const [selectedSensor, setSelectedSensor] = useState<SensorType>("temperature");
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
-  const errorToastShown = useRef(false);
-  const [sensorConnected, setSensorConnected] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
-  const connectAttemptsRef = useRef(0);
+  const [loading, setLoading] = useState(false);
   const currentTimeframeRef = useRef<Timeframe>("3m");
+  const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
 
   // Store all sensor data since the app started
-  const allSensorData = useRef<Record<SensorType, SensorData[]>>(
-    Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
-  );
-
   const [filteredSensorData, setFilteredSensorData] = useState<Record<SensorType, SensorData[]>>(
     Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
   );
 
-  // Function to filter data based on timeframe
-  const filterDataByTimeframe = (data: SensorData[], selectedTimeframe: Timeframe) => {
+  // Function to calculate the time range based on the selected timeframe
+  const calculateTimeRange = (selectedTimeframe: Timeframe) => {
     const now = new Date();
     const timeframeDurations: Record<Timeframe, number> = {
       "3m": 3 * 60 * 1000,
@@ -42,133 +34,54 @@ export default function Index() {
       "1m": 30 * 24 * 60 * 60 * 1000,
       "1y": 365 * 24 * 60 * 60 * 1000,
     };
-    const cutoffTime = now.getTime() - timeframeDurations[selectedTimeframe];
-    return data.filter((point) => point.timestamp.getTime() > cutoffTime);
+    
+    const cutoffTime = new Date(now.getTime() - timeframeDurations[selectedTimeframe]);
+    return { startTime: cutoffTime, endTime: now };
   };
 
   // Update currentTimeframeRef whenever timeframe changes
   useEffect(() => {
     currentTimeframeRef.current = timeframe;
+    updateGraphData(timeframe);
   }, [timeframe]);
 
-  useEffect(() => {
-    // Don't recreate socket connections repeatedly
-    if (socketRef.current) {
-      return;
-    }
-    
-    const socket = io(BACKEND_URL, {
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      timeout: 5000,
-      // Don't reconnect automatically
-      reconnection: true,
-    });
-    
-    socketRef.current = socket;
-
-    socket.on('connect', () => {
-      console.log('Connected to socket server');
-      errorToastShown.current = false;
-      
-      // Prevent repeated connection toasts
-      if (connectAttemptsRef.current > 0) {
-        toast({
-          title: "Connected to server",
-          description: "Server connection established",
-          duration: TOAST_DURATION,
-        });
-      }
-      connectAttemptsRef.current++;
-      setSensorConnected(true);
-    });
-
-    socket.on('disconnect', () => {
-      console.log('Disconnected from socket server');
-      // Don't show disconnection toasts for socket server
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('Socket connection error:', err);
-      
-      if (!errorToastShown.current) {
-        errorToastShown.current = true;
-        toast({
-          title: "Error",
-          description: "Failed to connect to server",
-          variant: "destructive",
-          duration: TOAST_DURATION,
-        });
-        setSensorConnected(false);
-      }
-    });
-
-    socket.on("sensorData", (reading) => {
-      const now = new Date();
-    
-      console.log("Received sensor data:", reading); // Debug logging
-    
-      // Map Arduino data to sensor types according to the loop() function:
-      // AQI, Temperature, Humidity, Pressure, TVOC, ECO2
-      const newData: Partial<Record<SensorType, SensorData>> = {
-        aqi: { type: "aqi", value: reading.aqi, timestamp: now },
-        temperature: { type: "temperature", value: reading.temperature, timestamp: now },
-        humidity: { type: "humidity", value: reading.humidity, timestamp: now },
-        pressure: { type: "pressure", value: reading.pressure, timestamp: now },
-        tvoc: { type: "tvoc", value: reading.tvoc, timestamp: now },
-        eco2: { type: "eco2", value: reading.eco2, timestamp: now },
-      };
-    
-      // Store new data in allSensorData
-      Object.entries(newData).forEach(([type, dataPoint]) => {
-        const typedType = type as SensorType;
-        if (!allSensorData.current[typedType]) {
-          allSensorData.current[typedType] = [];
-        }
-        allSensorData.current[typedType].push(dataPoint);
-      });
-    
-      // When new data arrives, update the filtered data
-      // Use the currently selected timeframe from the ref to ensure consistency
-      updateGraphData(currentTimeframeRef.current);
-    });
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
-      }
-    };
-  }, [toast]);
-
-  // Function to update graph data when timeframe or selected sensor changes
-  const updateGraphData = (selectedTimeframe: Timeframe = timeframe) => {
+  // Function to update graph data when timeframe changes
+  const updateGraphData = async (selectedTimeframe: Timeframe = timeframe) => {
     console.log(`Updating graph data with timeframe: ${selectedTimeframe}`);
+    setLoading(true);
     
-    // Get the current time for accurate filtering
-    const now = new Date();
-    
-    // Create a new object with filtered data for all sensors
-    // This ensures we're always filtering based on the current time and selected timeframe
-    const newFilteredData = Object.fromEntries(
-      Object.keys(SENSOR_CONFIG).map((type) => {
-        const sensorType = type as SensorType;
-        const data = allSensorData.current[sensorType] || [];
-        return [
-          sensorType,
-          filterDataByTimeframe(data, selectedTimeframe)
-        ];
-      })
-    ) as Record<SensorType, SensorData[]>;
-    
-    setFilteredSensorData(newFilteredData);
+    try {
+      const { startTime, endTime } = calculateTimeRange(selectedTimeframe);
+      const data = await fetchReadingsForTimeRange(startTime, endTime);
+      
+      setFilteredSensorData(data);
+      setDataLastUpdated(new Date());
+    } catch (error) {
+      console.error("Error fetching sensor data:", error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch sensor data",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Update the data when timeframe or selected sensor changes
+  // Create an automatic refresh every minute
   useEffect(() => {
-    console.log(`Timeframe changed to: ${timeframe} or sensor changed to: ${selectedSensor}`);
-    updateGraphData(timeframe);
-  }, [timeframe, selectedSensor]);
+    const intervalId = setInterval(() => {
+      updateGraphData(currentTimeframeRef.current);
+    }, 60000); // Refresh every 60 seconds
+    
+    return () => clearInterval(intervalId);
+  }, []);
+
+  // Initial data fetch
+  useEffect(() => {
+    updateGraphData();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -180,11 +93,24 @@ export default function Index() {
         >
           <Header />
 
-          <div className="flex justify-center">
-            <SerialPortSettings 
-              onPortChange={() => {}} 
-              onBaudRateChange={() => {}}
-            />
+          <div className="flex justify-between items-center">
+            <div>
+              <p className="text-sm text-gray-500">
+                Last updated: {dataLastUpdated.toLocaleTimeString()}
+              </p>
+            </div>
+            <div className="flex space-x-2 items-center">
+              {loading ? (
+                <div className="h-4 w-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+              ) : (
+                <button 
+                  onClick={() => updateGraphData()} 
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Refresh data
+                </button>
+              )}
+            </div>
           </div>
 
           <SensorGrid 

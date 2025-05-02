@@ -3,7 +3,7 @@ import React from "react";
 import { SensorCard } from "./SensorCard";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 
-// Define a display order for sensor cards to match Arduino's data output order
+// Define a display order for sensor cards to match Firestore data fields
 const sensorDisplayOrder: SensorType[] = [
   "aqi",
   "temperature",
