@@ -1,4 +1,3 @@
-
 import React from "react";
 import { SensorGraph } from "./SensorGraph";
 import { TimeframeSelector } from "./TimeframeSelector";
@@ -41,6 +40,7 @@ export function SensorHistory({
             downloadAll={true}
           />
         </div>
+        {/* Keep timeframe selector for UI consistency but it won't filter data */}
         <TimeframeSelector value={timeframe} onChange={onTimeframeChange} />
       </div>
 

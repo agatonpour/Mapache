@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
@@ -7,7 +6,7 @@ import { SensorHistory } from "@/components/SensorHistory";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { fetchReadingsForDateRange, filterReadingsByTimeframe } from "@/lib/firestore-service";
+import { fetchReadingsForDateRange } from "@/lib/firestore-service";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -24,13 +23,8 @@ export default function Index() {
   const [startDate, setStartDate] = useState<Date>(today);
   const [endDate, setEndDate] = useState<Date>(today);
   
-  // Store all sensor data (unfiltered)
-  const [allSensorData, setAllSensorData] = useState<Record<SensorType, SensorData[]>>(
-    Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
-  );
-  
-  // Filtered data based on timeframe
-  const [filteredSensorData, setFilteredSensorData] = useState<Record<SensorType, SensorData[]>>(
+  // Store sensor data
+  const [sensorData, setSensorData] = useState<Record<SensorType, SensorData[]>>(
     Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
   );
 
@@ -53,12 +47,7 @@ export default function Index() {
       console.log(`Fetching data from ${startDateStr} to ${endDateStr}`);
       const data = await fetchReadingsForDateRange(startDateStr, endDateStr);
       
-      setAllSensorData(data);
-      
-      // Apply timeframe filtering
-      const filtered = filterReadingsByTimeframe(data, timeframe);
-      setFilteredSensorData(filtered);
-      
+      setSensorData(data);
       setDataLastUpdated(new Date());
       
       // Show toast on success
@@ -79,12 +68,6 @@ export default function Index() {
       setLoading(false);
     }
   };
-
-  // Update filtered data when timeframe changes
-  useEffect(() => {
-    const filtered = filterReadingsByTimeframe(allSensorData, timeframe);
-    setFilteredSensorData(filtered);
-  }, [timeframe, allSensorData]);
 
   // Initial data fetch
   useEffect(() => {
@@ -136,7 +119,7 @@ export default function Index() {
           </div>
 
           <SensorGrid 
-            sensorData={filteredSensorData} 
+            sensorData={sensorData} 
             selectedSensor={selectedSensor} 
             onSensorSelect={setSelectedSensor} 
           />
@@ -144,8 +127,8 @@ export default function Index() {
           <SensorHistory 
             selectedSensor={selectedSensor} 
             timeframe={timeframe} 
-            data={filteredSensorData[selectedSensor] || []} 
-            allSensorData={filteredSensorData}
+            data={sensorData[selectedSensor] || []} 
+            allSensorData={sensorData}
             onTimeframeChange={setTimeframe} 
           />
         </motion.div>
