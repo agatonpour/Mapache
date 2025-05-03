@@ -134,13 +134,13 @@ export async function fetchReadingsForDate(dateStr: string): Promise<Record<Sens
       
       result.humidity.push({ 
         type: 'humidity', 
-        value: reading.humidity_percent / 10, // Dividing by 10 as it will be multiplied in SensorCard
+        value: reading.humidity_percent / 10, // Store humidity as 0-10 range, will be displayed as 0-100%
         timestamp 
       });
       
       result.pressure.push({ 
         type: 'pressure', 
-        value: reading.pressure_pa / 10, // Dividing by 10 for proper display (corrected)
+        value: reading.pressure_pa, // Store the original value, transformations happen in display components
         timestamp 
       });
       
@@ -177,52 +177,6 @@ export function filterReadingsByTimeframe(
   readings: Record<SensorType, SensorData[]>, 
   timeframe: string
 ): Record<SensorType, SensorData[]> {
-  const now = new Date();
-  let cutoffTime = new Date();
-  
-  switch (timeframe) {
-    case '3m':
-      cutoffTime.setMinutes(now.getMinutes() - 3);
-      break;
-    case '15m':
-      cutoffTime.setMinutes(now.getMinutes() - 15);
-      break;
-    case '1h':
-      cutoffTime.setHours(now.getHours() - 1);
-      break;
-    case '6h':
-      cutoffTime.setHours(now.getHours() - 6);
-      break;
-    case '1d':
-      cutoffTime.setDate(now.getDate() - 1);
-      break;
-    case '7d':
-      cutoffTime.setDate(now.getDate() - 7);
-      break;
-    case '30d':
-      cutoffTime.setDate(now.getDate() - 30);
-      break;
-    default:
-      // Default to all data
-      return readings;
-  }
-  
-  const filteredReadings: Record<SensorType, SensorData[]> = {
-    aqi: [],
-    temperature: [],
-    humidity: [],
-    pressure: [],
-    tvoc: [],
-    eco2: []
-  };
-  
-  // Filter each sensor type array
-  Object.keys(readings).forEach((key) => {
-    const sensorType = key as SensorType;
-    filteredReadings[sensorType] = readings[sensorType].filter(
-      reading => reading.timestamp >= cutoffTime
-    );
-  });
-  
-  return filteredReadings;
+  // We're not going to filter by timeframe anymore, just return all readings
+  return readings;
 }

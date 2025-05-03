@@ -14,15 +14,15 @@ interface SensorCardProps {
 export function SensorCard({ type, value, timestamp, onClick, isSelected }: SensorCardProps) {
   const config = SENSOR_CONFIG[type];
   
-  // Apply specific transformations for humidity, pressure and AQI
+  // Apply specific transformations for humidity and pressure
   let displayValue = value;
   
   if (type === "humidity") {
     // Multiply humidity by 10 to show correct percentage
     displayValue = value * 10;
   } else if (type === "pressure") {
-    // No transformation needed - already divided by 10 in the firestore-service
-    displayValue = value;
+    // Display pressure in hPa (divide by 10)
+    displayValue = value / 10;
   } else if (type === "aqi") {
     // Ensure AQI is not rounded down to zero
     displayValue = Math.max(1, value);
