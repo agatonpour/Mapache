@@ -5,7 +5,8 @@ import {
   doc,
   Timestamp,
   orderBy,
-  query
+  query,
+  where
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { SensorData, SensorType } from "./mock-data";
@@ -19,6 +20,65 @@ export interface FirestoreReading {
   tvoc_ppb: number;
   eco2_ppm: number;
   timestamp: string | Timestamp; // ISO string or Firestore timestamp
+}
+
+// Function to fetch readings for a specific date range
+export async function fetchReadingsForDateRange(startDateStr: string, endDateStr: string): Promise<Record<SensorType, SensorData[]>> {
+  try {
+    console.log(`Fetching readings from ${startDateStr} to ${endDateStr}`);
+    
+    // Initialize the result object with empty arrays for each sensor type
+    const result: Record<SensorType, SensorData[]> = {
+      aqi: [],
+      temperature: [],
+      humidity: [],
+      pressure: [],
+      tvoc: [],
+      eco2: []
+    };
+    
+    // Convert string dates to Date objects
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+    endDate.setHours(23, 59, 59, 999); // Set to end of day
+    
+    // Iterate through each day in the range
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      const dateStr = currentDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+      
+      // Get readings for this specific date
+      const dateReadings = await fetchReadingsForDate(dateStr);
+      
+      // Merge the readings into our result
+      Object.keys(dateReadings).forEach((key) => {
+        const sensorType = key as SensorType;
+        result[sensorType] = [...result[sensorType], ...dateReadings[sensorType]];
+      });
+      
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    // Sort all readings by timestamp
+    Object.keys(result).forEach((key) => {
+      const sensorType = key as SensorType;
+      result[sensorType].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    });
+    
+    return result;
+  } catch (error) {
+    console.error(`Error fetching readings for date range ${startDateStr} to ${endDateStr}:`, error);
+    // Return empty data on error
+    return {
+      aqi: [],
+      temperature: [],
+      humidity: [],
+      pressure: [],
+      tvoc: [],
+      eco2: []
+    };
+  }
 }
 
 // Function to fetch readings from a specific date
@@ -80,7 +140,7 @@ export async function fetchReadingsForDate(dateStr: string): Promise<Record<Sens
       
       result.pressure.push({ 
         type: 'pressure', 
-        value: reading.pressure_pa * 10, // Multiplying by 10 as it will be divided in SensorCard
+        value: reading.pressure_pa / 10, // Dividing by 10 for proper display (corrected)
         timestamp 
       });
       
@@ -110,4 +170,59 @@ export async function fetchReadingsForDate(dateStr: string): Promise<Record<Sens
       eco2: []
     };
   }
+}
+
+// Function to filter readings by timeframe
+export function filterReadingsByTimeframe(
+  readings: Record<SensorType, SensorData[]>, 
+  timeframe: string
+): Record<SensorType, SensorData[]> {
+  const now = new Date();
+  let cutoffTime = new Date();
+  
+  switch (timeframe) {
+    case '3m':
+      cutoffTime.setMinutes(now.getMinutes() - 3);
+      break;
+    case '15m':
+      cutoffTime.setMinutes(now.getMinutes() - 15);
+      break;
+    case '1h':
+      cutoffTime.setHours(now.getHours() - 1);
+      break;
+    case '6h':
+      cutoffTime.setHours(now.getHours() - 6);
+      break;
+    case '1d':
+      cutoffTime.setDate(now.getDate() - 1);
+      break;
+    case '7d':
+      cutoffTime.setDate(now.getDate() - 7);
+      break;
+    case '30d':
+      cutoffTime.setDate(now.getDate() - 30);
+      break;
+    default:
+      // Default to all data
+      return readings;
+  }
+  
+  const filteredReadings: Record<SensorType, SensorData[]> = {
+    aqi: [],
+    temperature: [],
+    humidity: [],
+    pressure: [],
+    tvoc: [],
+    eco2: []
+  };
+  
+  // Filter each sensor type array
+  Object.keys(readings).forEach((key) => {
+    const sensorType = key as SensorType;
+    filteredReadings[sensorType] = readings[sensorType].filter(
+      reading => reading.timestamp >= cutoffTime
+    );
+  });
+  
+  return filteredReadings;
 }

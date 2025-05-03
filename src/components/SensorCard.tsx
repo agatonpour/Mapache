@@ -21,8 +21,8 @@ export function SensorCard({ type, value, timestamp, onClick, isSelected }: Sens
     // Multiply humidity by 10 to show correct percentage
     displayValue = value * 10;
   } else if (type === "pressure") {
-    // Divide pressure by 10 to show correct value
-    displayValue = value / 10;
+    // No transformation needed - already divided by 10 in the firestore-service
+    displayValue = value;
   } else if (type === "aqi") {
     // Ensure AQI is not rounded down to zero
     displayValue = Math.max(1, value);
