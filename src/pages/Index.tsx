@@ -7,7 +7,10 @@ import { SensorHistory } from "@/components/SensorHistory";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { fetchReadingsForDate } from "@/lib/firestore-service";
+import { fetchReadingsForDateRange, filterReadingsByTimeframe } from "@/lib/firestore-service";
+import { DateRangePicker } from "@/components/DateRangePicker";
+import { Button } from "@/components/ui/button";
+import { RefreshCw } from "lucide-react";
 
 export default function Index() {
   const { toast } = useToast();
@@ -15,35 +18,53 @@ export default function Index() {
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const [loading, setLoading] = useState(false);
   const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
-
-  // Store all sensor data
-  const [sensorData, setSensorData] = useState<Record<SensorType, SensorData[]>>(
+  
+  // Date range state
+  const today = new Date();
+  const [startDate, setStartDate] = useState<Date>(today);
+  const [endDate, setEndDate] = useState<Date>(today);
+  
+  // Store all sensor data (unfiltered)
+  const [allSensorData, setAllSensorData] = useState<Record<SensorType, SensorData[]>>(
+    Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
+  );
+  
+  // Filtered data based on timeframe
+  const [filteredSensorData, setFilteredSensorData] = useState<Record<SensorType, SensorData[]>>(
     Object.fromEntries(Object.keys(SENSOR_CONFIG).map((type) => [type, []])) as Record<SensorType, SensorData[]>
   );
 
-  // Function to fetch data for today
-  const fetchTodaysData = async () => {
-    console.log("Fetching today's data");
+  // Function to handle date range changes
+  const handleDateRangeChange = (newStartDate: Date, newEndDate: Date) => {
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+  };
+
+  // Function to fetch data for selected date range
+  const fetchData = async () => {
+    console.log("Fetching data for date range", startDate, endDate);
     setLoading(true);
     
     try {
-      // Format today's date as YYYY-MM-DD
-      const today = new Date();
-      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      // Format dates as YYYY-MM-DD
+      const startDateStr = startDate.toISOString().split('T')[0];
+      const endDateStr = endDate.toISOString().split('T')[0];
       
-      // For testing, we'll use the specific date from the requirements
-      const testDateStr = "2025-05-02";
+      console.log(`Fetching data from ${startDateStr} to ${endDateStr}`);
+      const data = await fetchReadingsForDateRange(startDateStr, endDateStr);
       
-      console.log(`Fetching data for ${testDateStr}`);
-      const data = await fetchReadingsForDate(testDateStr);
+      setAllSensorData(data);
       
-      setSensorData(data);
+      // Apply timeframe filtering
+      const filtered = filterReadingsByTimeframe(data, timeframe);
+      setFilteredSensorData(filtered);
+      
       setDataLastUpdated(new Date());
       
       // Show toast on success
       toast({
         title: "Data loaded",
-        description: `Loaded sensor readings for ${testDateStr}`,
+        description: `Loaded sensor readings from ${startDateStr} to ${endDateStr}`,
         duration: 3000,
       });
     } catch (error) {
@@ -59,9 +80,15 @@ export default function Index() {
     }
   };
 
+  // Update filtered data when timeframe changes
+  useEffect(() => {
+    const filtered = filterReadingsByTimeframe(allSensorData, timeframe);
+    setFilteredSensorData(filtered);
+  }, [timeframe, allSensorData]);
+
   // Initial data fetch
   useEffect(() => {
-    fetchTodaysData();
+    fetchData();
   }, []);
 
   return (
@@ -74,28 +101,42 @@ export default function Index() {
         >
           <Header />
 
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-gray-500">
-                Last updated: {dataLastUpdated.toLocaleTimeString()}
-              </p>
-            </div>
-            <div className="flex space-x-2 items-center">
-              {loading ? (
-                <div className="h-4 w-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-              ) : (
-                <button 
-                  onClick={fetchTodaysData} 
-                  className="text-xs text-blue-600 hover:text-blue-800"
-                >
-                  Refresh data
-                </button>
-              )}
+          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <DateRangePicker 
+              startDate={startDate}
+              endDate={endDate}
+              onRangeChange={handleDateRangeChange}
+            />
+            
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-sm text-gray-500">
+                  Last updated: {dataLastUpdated.toLocaleTimeString()}
+                </p>
+              </div>
+              <Button 
+                onClick={fetchData} 
+                variant="outline"
+                size="sm"
+                disabled={loading}
+              >
+                {loading ? (
+                  <span className="flex items-center">
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Loading...
+                  </span>
+                ) : (
+                  <span className="flex items-center">
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </span>
+                )}
+              </Button>
             </div>
           </div>
 
           <SensorGrid 
-            sensorData={sensorData} 
+            sensorData={filteredSensorData} 
             selectedSensor={selectedSensor} 
             onSensorSelect={setSelectedSensor} 
           />
@@ -103,8 +144,8 @@ export default function Index() {
           <SensorHistory 
             selectedSensor={selectedSensor} 
             timeframe={timeframe} 
-            data={sensorData[selectedSensor] || []} 
-            allSensorData={sensorData}
+            data={filteredSensorData[selectedSensor] || []} 
+            allSensorData={filteredSensorData}
             onTimeframeChange={setTimeframe} 
           />
         </motion.div>
