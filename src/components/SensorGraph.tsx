@@ -34,24 +34,31 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
 
   // Group data by date for multi-day display
   const dateGroups = useMemo(() => {
-    if (!spansMultipleDays) return [];
+    if (!spansMultipleDays || data.length === 0) return [];
     
-    // Create an object to store unique dates
-    const uniqueDays = new Map();
+    // Create a Map to collect data points by date
+    const dayGroups = new Map();
     
-    // Process each data point
-    data.forEach((item, index) => {
+    // Sort data by timestamp to ensure chronological order
+    const sortedData = [...data].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+    
+    // Process each data point to find unique days and their positions
+    sortedData.forEach((item, index) => {
       const dateKey = item.timestamp.toISOString().split('T')[0];
-      if (!uniqueDays.has(dateKey)) {
-        uniqueDays.set(dateKey, { 
+      
+      if (!dayGroups.has(dateKey)) {
+        // For each unique date, store its first occurrence index
+        dayGroups.set(dateKey, {
           date: format(item.timestamp, 'MMM dd'),
-          index: index,
-          xPosition: null // Will be calculated during rendering
+          startIndex: index,
+          // Calculate position based on timestamp relative to start and end times
+          position: (item.timestamp.getTime() - sortedData[0].timestamp.getTime()) / 
+                   (sortedData[sortedData.length - 1].timestamp.getTime() - sortedData[0].timestamp.getTime())
         });
       }
     });
     
-    return Array.from(uniqueDays.values());
+    return Array.from(dayGroups.values());
   }, [data, spansMultipleDays]);
 
   const chartData = useMemo(
@@ -124,8 +131,8 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
                   height={25}
                   xAxisId="date-axis"
                   orientation="bottom"
-                  tick={null} // Changed from false to null to fix the type error
-                  label=""   // Changed from false to empty string
+                  tick={null} 
+                  label=""   
                 />
               )}
               
@@ -170,18 +177,16 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
           
           {/* Custom date markers that appear below the chart */}
           {spansMultipleDays && (
-            <div className="relative w-full h-6 -mt-8">
+            <div className="relative w-full h-6 -mt-8 px-10">
               {dateGroups.map((group, idx) => {
-                // Calculate approximate position for date labels
-                // This is an estimate based on the number of data points
-                const position = (group.index / (data.length - 1)) * 100;
-                
+                // Position each date marker based on calculated position
                 return (
                   <div 
                     key={`date-${idx}`} 
                     className="absolute -mt-2 text-xs font-medium text-gray-600"
                     style={{ 
-                      left: `calc(${position}% - 15px)`, // Center the date label
+                      left: `${group.position * 100}%`,
+                      transform: 'translateX(-50%)', // Center the date label
                     }}
                   >
                     {group.date}
