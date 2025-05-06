@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo } from "react";
 import {
   LineChart,
@@ -21,24 +22,34 @@ interface SensorGraphProps {
 export function SensorGraph({ data, type }: SensorGraphProps) {
   const config = SENSOR_CONFIG[type];
 
-  // Function to format timestamp with date when spanning multiple days
-  const formatXAxisTick = (timestamp: string) => {
-    const date = new Date(timestamp);
+  // Check if data spans multiple days
+  const spansMultipleDays = useMemo(() => {
+    if (data.length < 2) return false;
     
-    // Check if we have data spanning multiple days
-    if (data.length > 0) {
-      const firstDay = data[0].timestamp.getDate();
-      const lastDay = data[data.length - 1].timestamp.getDate();
-      
-      // If data spans multiple days, include date information
-      if (firstDay !== lastDay || data[0].timestamp.getMonth() !== data[data.length - 1].timestamp.getMonth()) {
-        return format(date, 'MM-dd HH:mm');
+    const firstDay = data[0].timestamp.toISOString().split('T')[0];
+    const lastDay = data[data.length - 1].timestamp.toISOString().split('T')[0];
+    
+    return firstDay !== lastDay;
+  }, [data]);
+
+  // Group data by date for multi-day display
+  const dateGroups = useMemo(() => {
+    if (!spansMultipleDays) return [];
+    
+    const groups = new Map<string, { date: string, firstIndex: number }>();
+    
+    data.forEach((item, index) => {
+      const dateKey = item.timestamp.toISOString().split('T')[0];
+      if (!groups.has(dateKey)) {
+        groups.set(dateKey, { 
+          date: format(item.timestamp, 'MMM dd'), 
+          firstIndex: index
+        });
       }
-    }
+    });
     
-    // Otherwise just show time
-    return format(date, 'HH:mm:ss');
-  };
+    return Array.from(groups.values());
+  }, [data, spansMultipleDays]);
 
   const chartData = useMemo(
     () =>
@@ -68,6 +79,12 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
   const maxValue = values.length > 0 ? Math.max(...values) : 100;
   const padding = (maxValue - minValue) * 0.1; // Add 10% padding to min/max
 
+  // Format time only for x-axis ticks
+  const formatXAxisTick = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return format(date, 'HH:mm:ss');
+  };
+
   return (
     <AnimatePresence mode="wait">
       <motion.div
@@ -76,69 +93,100 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
         transition={{ duration: 0.5 }}
-        className="w-full h-[400px]"
+        className="w-full"
       >
-        <ResponsiveContainer>
-          <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis
-              dataKey="timestamp"
-              stroke="#888888"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-              tickFormatter={(value) => formatXAxisTick(value)}
-            />
-            <YAxis
-              stroke="#888888"
-              fontSize={12}
-              tickLine={false}
-              axisLine={false}
-              domain={[
-                Math.max(config.min, minValue - padding),
-                Math.min(config.max, maxValue + padding)
-              ]}
-              tickFormatter={(value) => config.formatValue(value)}
-            />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "white",
-                border: "none",
-                borderRadius: "8px",
-                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-              }}
-              labelFormatter={(value) => {
-                // Format the tooltip label with date if spanning multiple days
-                const date = new Date(value);
-                
-                // Check if we have data spanning multiple days
-                if (data.length > 0) {
-                  const firstDay = data[0].timestamp.getDate();
-                  const lastDay = data[data.length - 1].timestamp.getDate();
-                  
-                  // If data spans multiple days, include date information
-                  if (firstDay !== lastDay || data[0].timestamp.getMonth() !== data[data.length - 1].timestamp.getMonth()) {
-                    return format(date, 'yyyy-MM-dd HH:mm:ss');
-                  }
+        <div className="w-full h-[400px]">
+          <ResponsiveContainer>
+            <LineChart 
+              data={chartData}
+              margin={{ top: 5, right: 30, left: 20, bottom: spansMultipleDays ? 30 : 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis
+                dataKey="timestamp"
+                stroke="#888888"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={formatXAxisTick}
+                height={30}
+              />
+              
+              {/* Add a second XAxis for date labels when spanning multiple days */}
+              {spansMultipleDays && (
+                <XAxis
+                  dataKey="timestamp"
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                  tickFormatter={() => ''}
+                  height={20}
+                  xAxisId="date-axis"
+                  tick={(props) => {
+                    const { x, y, payload } = props;
+                    const index = chartData.findIndex(d => d.timestamp === payload.value);
+                    
+                    // Check if this tick corresponds to the first data point of any date
+                    const dateLabel = dateGroups.find(group => group.firstIndex === index);
+                    
+                    if (dateLabel) {
+                      return (
+                        <text
+                          x={x}
+                          y={y + 15}
+                          textAnchor="middle"
+                          fill="#666"
+                          fontSize={11}
+                          fontWeight="500"
+                        >
+                          {dateLabel.date}
+                        </text>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              )}
+              
+              <YAxis
+                stroke="#888888"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                domain={[
+                  Math.max(config.min, minValue - padding),
+                  Math.min(config.max, maxValue + padding)
+                ]}
+                tickFormatter={(value) => config.formatValue(value)}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "white",
+                  border: "none",
+                  borderRadius: "8px",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                }}
+                labelFormatter={(value) => {
+                  const date = new Date(value);
+                  // Always show full date and time in tooltip
+                  return format(date, 'yyyy-MM-dd HH:mm:ss');
+                }}
+                formatter={(value: number) =>
+                  [config.formatValue(value) + " " + config.unit, config.label]
                 }
-                
-                return format(date, 'HH:mm:ss');
-              }}
-              formatter={(value: number) =>
-                [config.formatValue(value) + " " + config.unit, config.label]
-              }
-            />
-            <Line
-              type="monotone"
-              dataKey="value"
-              stroke={config.color}
-              strokeWidth={2}
-              dot={false}
-              animationDuration={1000}
-              isAnimationActive={true}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+              />
+              <Line
+                type="monotone"
+                dataKey="value"
+                stroke={config.color}
+                strokeWidth={2}
+                dot={false}
+                animationDuration={1000}
+                isAnimationActive={true}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </motion.div>
     </AnimatePresence>
   );
