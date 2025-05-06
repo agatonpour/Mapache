@@ -1,6 +1,6 @@
+
 import React from "react";
 import { SensorGraph } from "./SensorGraph";
-import { TimeframeSelector } from "./TimeframeSelector";
 import { DataDownloadButton } from "./DataDownloadButton";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
@@ -17,8 +17,7 @@ export function SensorHistory({
   selectedSensor, 
   timeframe, 
   data, 
-  allSensorData,
-  onTimeframeChange 
+  allSensorData
 }: SensorHistoryProps) {
   return (
     <div className="space-y-4">
@@ -40,8 +39,6 @@ export function SensorHistory({
             downloadAll={true}
           />
         </div>
-        {/* Keep timeframe selector for UI consistency but it won't filter data */}
-        <TimeframeSelector value={timeframe} onChange={onTimeframeChange} />
       </div>
 
       <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl p-4 shadow-sm">
