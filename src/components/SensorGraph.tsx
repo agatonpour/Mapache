@@ -124,8 +124,8 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
                   height={25}
                   xAxisId="date-axis"
                   orientation="bottom"
-                  tick={false}
-                  label={false}
+                  tick={null} // Changed from false to null to fix the type error
+                  label=""   // Changed from false to empty string
                 />
               )}
               
