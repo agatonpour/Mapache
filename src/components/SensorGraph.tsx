@@ -36,19 +36,22 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
   const dateGroups = useMemo(() => {
     if (!spansMultipleDays) return [];
     
-    const groups = new Map<string, { date: string, firstIndex: number }>();
+    // Create an object to store unique dates
+    const uniqueDays = new Map();
     
+    // Process each data point
     data.forEach((item, index) => {
       const dateKey = item.timestamp.toISOString().split('T')[0];
-      if (!groups.has(dateKey)) {
-        groups.set(dateKey, { 
-          date: format(item.timestamp, 'MMM dd'), 
-          firstIndex: index
+      if (!uniqueDays.has(dateKey)) {
+        uniqueDays.set(dateKey, { 
+          date: format(item.timestamp, 'MMM dd'),
+          index: index,
+          xPosition: null // Will be calculated during rendering
         });
       }
     });
     
-    return Array.from(groups.values());
+    return Array.from(uniqueDays.values());
   }, [data, spansMultipleDays]);
 
   const chartData = useMemo(
@@ -79,10 +82,10 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
   const maxValue = values.length > 0 ? Math.max(...values) : 100;
   const padding = (maxValue - minValue) * 0.1; // Add 10% padding to min/max
 
-  // Format time only for x-axis ticks
+  // Format time only (hours and minutes) for x-axis ticks
   const formatXAxisTick = (timestamp: string) => {
     const date = new Date(timestamp);
-    return format(date, 'HH:mm:ss');
+    return format(date, 'HH:mm');
   };
 
   return (
@@ -99,7 +102,7 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
           <ResponsiveContainer>
             <LineChart 
               data={chartData}
-              margin={{ top: 5, right: 30, left: 20, bottom: spansMultipleDays ? 30 : 5 }}
+              margin={{ top: 5, right: 30, left: 20, bottom: spansMultipleDays ? 40 : 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
@@ -118,33 +121,11 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
                   dataKey="timestamp"
                   axisLine={false}
                   tickLine={false}
-                  interval={0}
-                  tickFormatter={() => ''}
-                  height={20}
+                  height={25}
                   xAxisId="date-axis"
-                  tick={(props) => {
-                    const { x, y, payload } = props;
-                    const index = chartData.findIndex(d => d.timestamp === payload.value);
-                    
-                    // Check if this tick corresponds to the first data point of any date
-                    const dateLabel = dateGroups.find(group => group.firstIndex === index);
-                    
-                    if (dateLabel) {
-                      return (
-                        <text
-                          x={x}
-                          y={y + 15}
-                          textAnchor="middle"
-                          fill="#666"
-                          fontSize={11}
-                          fontWeight="500"
-                        >
-                          {dateLabel.date}
-                        </text>
-                      );
-                    }
-                    return null;
-                  }}
+                  orientation="bottom"
+                  tick={false}
+                  label={false}
                 />
               )}
               
@@ -169,7 +150,7 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
                 labelFormatter={(value) => {
                   const date = new Date(value);
                   // Always show full date and time in tooltip
-                  return format(date, 'yyyy-MM-dd HH:mm:ss');
+                  return format(date, 'yyyy-MM-dd HH:mm');
                 }}
                 formatter={(value: number) =>
                   [config.formatValue(value) + " " + config.unit, config.label]
@@ -186,6 +167,29 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
               />
             </LineChart>
           </ResponsiveContainer>
+          
+          {/* Custom date markers that appear below the chart */}
+          {spansMultipleDays && (
+            <div className="relative w-full h-6 -mt-8">
+              {dateGroups.map((group, idx) => {
+                // Calculate approximate position for date labels
+                // This is an estimate based on the number of data points
+                const position = (group.index / (data.length - 1)) * 100;
+                
+                return (
+                  <div 
+                    key={`date-${idx}`} 
+                    className="absolute -mt-2 text-xs font-medium text-gray-600"
+                    style={{ 
+                      left: `calc(${position}% - 15px)`, // Center the date label
+                    }}
+                  >
+                    {group.date}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </motion.div>
     </AnimatePresence>
