@@ -23,10 +23,12 @@ export function SensorChartTooltip({
   const config = SENSOR_CONFIG[sensorType];
   const value = payload[0].value;
   
-  // Special formatting for pressure values in tooltip
+  // Special formatting for pressure and humidity values in tooltip
   let formattedValue = value;
   if (sensorType === 'pressure') {
     formattedValue = (value / 10).toFixed(1); // Ensure one decimal place for pressure
+  } else if (sensorType === 'humidity') {
+    formattedValue = value.toFixed(1); // Ensure one decimal place for humidity
   }
   
   return (
@@ -42,7 +44,9 @@ export function SensorChartTooltip({
       <p className="text-sm font-medium">{formatTooltipLabel(label || "")}</p>
       <p className="text-sm text-gray-700">
         <span className="font-medium">{config.label}:</span>{" "}
-        {sensorType === 'pressure' ? formattedValue : config.formatValue(value)} {config.unit}
+        {sensorType === 'pressure' ? formattedValue : 
+         sensorType === 'humidity' ? formattedValue : 
+         config.formatValue(value)} {config.unit}
       </p>
     </div>
   );
