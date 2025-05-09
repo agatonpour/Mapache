@@ -32,6 +32,8 @@ export function SensorCard({ type, value, timestamp, onClick, isSelected }: Sens
   let formattedValue;
   if (type === "pressure") {
     formattedValue = displayValue.toFixed(1); // Ensure exactly one decimal place for pressure
+  } else if (type === "humidity") {
+    formattedValue = displayValue.toFixed(1); // Ensure exactly one decimal place for humidity
   } else {
     formattedValue = config.formatValue(displayValue);
   }

@@ -8,10 +8,10 @@ export interface DateGroup {
   position: number;
 }
 
-// Format time based on timestamp
+// Format time based on timestamp - now showing only hours
 export function formatXAxisTick(timestamp: string): string {
   const date = new Date(timestamp);
-  return format(date, 'HH:mm');
+  return format(date, 'HH:00'); // Changed from 'HH:mm' to 'HH:00' to show only hours
 }
 
 // Format full date and time for tooltips

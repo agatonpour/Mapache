@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
@@ -47,7 +46,23 @@ export default function Index() {
       console.log(`Fetching data from ${startDateStr} to ${endDateStr}`);
       const data = await fetchReadingsForDateRange(startDateStr, endDateStr);
       
-      setSensorData(data);
+      // Filter data to make sure it falls within selected date range
+      const filteredData = Object.fromEntries(
+        Object.entries(data).map(([sensorType, readings]) => {
+          // Add one day to endDate to include the entire end day
+          const endDateLimit = new Date(endDate);
+          endDateLimit.setDate(endDateLimit.getDate() + 1);
+          
+          const filteredReadings = readings.filter(reading => {
+            const readingDate = new Date(reading.timestamp);
+            return readingDate >= startDate && readingDate < endDateLimit;
+          });
+          
+          return [sensorType, filteredReadings];
+        })
+      ) as Record<SensorType, SensorData[]>;
+      
+      setSensorData(filteredData);
       setDataLastUpdated(new Date());
       
       // Show toast on success
