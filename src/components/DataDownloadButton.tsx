@@ -11,6 +11,7 @@ interface DataDownloadButtonProps {
   data: SensorData[];
   allSensorData?: Record<SensorType, SensorData[]>;
   downloadAll?: boolean;
+  children?: React.ReactNode; // Added children prop
 }
 
 export function DataDownloadButton({ 
@@ -18,7 +19,8 @@ export function DataDownloadButton({
   timeframe, 
   data, 
   allSensorData,
-  downloadAll = false 
+  downloadAll = false,
+  children
 }: DataDownloadButtonProps) {
   const handleDownloadData = () => {
     if (downloadAll && allSensorData) {
@@ -133,7 +135,7 @@ export function DataDownloadButton({
       className={downloadAll ? "gap-2 ml-2" : ""}
     >
       {downloadAll && <Download size={16} />}
-      {downloadAll ? "Download All" : "Download selected datatype"}
+      {children || (downloadAll ? "Download All" : "Download selected datatype")}
     </Button>
   );
 }
