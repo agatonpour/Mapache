@@ -19,7 +19,7 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
   
-  // Date range state
+  // Date range state - initialize both to today
   const today = new Date();
   const [startDate, setStartDate] = useState<Date>(today);
   const [endDate, setEndDate] = useState<Date>(today);
@@ -37,7 +37,6 @@ export default function Index() {
 
   // Function to fetch data for selected date range
   const fetchData = async () => {
-    console.log("Fetching data for date range", startDate, endDate);
     setLoading(true);
     
     try {
@@ -70,10 +69,13 @@ export default function Index() {
     }
   };
 
-  // Initial data fetch
+  // Initial data fetch - using today's date only
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Calculate date range span in days
+  const dateRangeSpanDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -131,6 +133,7 @@ export default function Index() {
             data={sensorData[selectedSensor] || []} 
             allSensorData={sensorData}
             onTimeframeChange={setTimeframe} 
+            dateRangeSpanDays={dateRangeSpanDays}
           />
         </motion.div>
       </div>
