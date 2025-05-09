@@ -17,9 +17,10 @@ import { format } from "date-fns";
 interface SensorGraphProps {
   data: SensorData[];
   type: SensorType;
+  dateRangeSpanDays?: number;
 }
 
-export function SensorGraph({ data, type }: SensorGraphProps) {
+export function SensorGraph({ data, type, dateRangeSpanDays = 1 }: SensorGraphProps) {
   const config = SENSOR_CONFIG[type];
 
   // Check if data spans multiple days
@@ -89,11 +90,14 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
   const maxValue = values.length > 0 ? Math.max(...values) : 100;
   const padding = (maxValue - minValue) * 0.1; // Add 10% padding to min/max
 
-  // Format time only (hours and minutes) for x-axis ticks
+  // Format time based on date range span
   const formatXAxisTick = (timestamp: string) => {
     const date = new Date(timestamp);
-    return format(date, 'HH:mm');
+    return format(date, 'HH:mm'); // Always show time only for x-axis ticks
   };
+
+  // Determine whether to use date-based or time-based x-axis based on dateRangeSpanDays
+  const useTimeBased = dateRangeSpanDays <= 3;
 
   return (
     <AnimatePresence mode="wait">
@@ -123,7 +127,7 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
               />
               
               {/* Add a second XAxis for date labels when spanning multiple days */}
-              {spansMultipleDays && (
+              {spansMultipleDays && !useTimeBased && (
                 <XAxis
                   dataKey="timestamp"
                   axisLine={false}
@@ -159,9 +163,14 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
                   // Always show full date and time in tooltip
                   return format(date, 'yyyy-MM-dd HH:mm');
                 }}
-                formatter={(value: number) =>
-                  [config.formatValue(value) + " " + config.unit, config.label]
-                }
+                formatter={(value: number) => {
+                  // Special handling for pressure to show 4 digits before decimal point
+                  if (type === 'pressure') {
+                    const formattedValue = (value / 10).toFixed(1); // Ensure one decimal place
+                    return [`${formattedValue} ${config.unit}`, config.label];
+                  }
+                  return [config.formatValue(value) + " " + config.unit, config.label];
+                }}
               />
               <Line
                 type="monotone"
@@ -176,7 +185,7 @@ export function SensorGraph({ data, type }: SensorGraphProps) {
           </ResponsiveContainer>
           
           {/* Custom date markers that appear below the chart */}
-          {spansMultipleDays && (
+          {spansMultipleDays && !useTimeBased && (
             <div className="relative w-full h-6 -mt-8 px-10">
               {dateGroups.map((group, idx) => {
                 // Position each date marker based on calculated position

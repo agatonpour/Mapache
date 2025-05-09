@@ -11,13 +11,15 @@ interface SensorHistoryProps {
   data: SensorData[];
   allSensorData: Record<SensorType, SensorData[]>;
   onTimeframeChange: (value: Timeframe) => void;
+  dateRangeSpanDays?: number;
 }
 
 export function SensorHistory({ 
   selectedSensor, 
   timeframe, 
   data, 
-  allSensorData
+  allSensorData,
+  dateRangeSpanDays = 1
 }: SensorHistoryProps) {
   return (
     <div className="space-y-4">
@@ -42,7 +44,7 @@ export function SensorHistory({
       </div>
 
       <div className="bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-xl p-4 shadow-sm">
-        <SensorGraph data={data} type={selectedSensor} />
+        <SensorGraph data={data} type={selectedSensor} dateRangeSpanDays={dateRangeSpanDays} />
       </div>
     </div>
   );

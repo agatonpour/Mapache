@@ -133,7 +133,7 @@ export function DataDownloadButton({
       className={downloadAll ? "gap-2 ml-2" : ""}
     >
       {downloadAll && <Download size={16} />}
-      {downloadAll ? "Download All" : "Download Data"}
+      {downloadAll ? "Download All" : "Download selected datatype"}
     </Button>
   );
 }

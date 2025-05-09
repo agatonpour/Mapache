@@ -27,6 +27,14 @@ export function SensorCard({ type, value, timestamp, onClick, isSelected }: Sens
     // Ensure AQI is not rounded down to zero
     displayValue = Math.max(1, value);
   }
+  
+  // Format the display value
+  let formattedValue;
+  if (type === "pressure") {
+    formattedValue = displayValue.toFixed(1); // Ensure exactly one decimal place for pressure
+  } else {
+    formattedValue = config.formatValue(displayValue);
+  }
 
   return (
     <motion.div
@@ -48,7 +56,7 @@ export function SensorCard({ type, value, timestamp, onClick, isSelected }: Sens
         </div>
         <div className="flex items-baseline justify-between">
           <p className="text-2xl font-bold tracking-tight text-gray-900">
-            {config.formatValue(displayValue)} {config.unit}
+            {formattedValue} {config.unit}
           </p>
         </div>
         <p className="text-sm text-gray-500">
