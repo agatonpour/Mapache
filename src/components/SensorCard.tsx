@@ -21,8 +21,8 @@ export function SensorCard({ type, value, timestamp, onClick, isSelected }: Sens
     // Multiply humidity by 10 to show correct percentage
     displayValue = value * 10;
   } else if (type === "pressure") {
-    // Display pressure in hPa (divide by 10)
-    displayValue = value / 10;
+    // Display pressure in hPa (divide by 100 for 4 digits before decimal)
+    displayValue = value / 100;
   } else if (type === "aqi") {
     // Ensure AQI is not rounded down to zero
     displayValue = Math.max(1, value);

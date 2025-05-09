@@ -32,7 +32,9 @@ export function SensorHistory({
             selectedSensor={selectedSensor} 
             timeframe={timeframe} 
             data={data} 
-          />
+          >
+            Download selected datatype
+          </DataDownloadButton>
           <DataDownloadButton 
             selectedSensor={selectedSensor} 
             timeframe={timeframe} 
