@@ -8,9 +8,10 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
 } from "recharts";
 import { SensorType, SENSOR_CONFIG } from "@/lib/mock-data";
-import { formatXAxisTick } from "@/lib/graph-utils";
+import { formatXAxisTick, formatDateTick, getDateTransitions } from "@/lib/graph-utils";
 import { SensorChartTooltip } from "./SensorChartTooltip";
 
 interface SensorChartProps {
@@ -33,6 +34,9 @@ export function SensorChart({
   spansMultipleDays
 }: SensorChartProps) {
   const config = SENSOR_CONFIG[type];
+  
+  // Get date transitions for reference lines (only for multi-day ranges)
+  const dateTransitions = spansMultipleDays && !useTimeBased ? getDateTransitions(data) : [];
 
   return (
     <ResponsiveContainer>
@@ -41,29 +45,28 @@ export function SensorChart({
         margin={{ top: 5, right: 30, left: 20, bottom: spansMultipleDays ? 40 : 5 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        
+        {/* Add subtle reference lines between dates for multi-day ranges */}
+        {dateTransitions.map((transition, index) => (
+          <ReferenceLine
+            key={`date-transition-${index}`}
+            x={transition.timestamp}
+            stroke="#e0e0e0"
+            strokeWidth={1}
+            strokeDasharray="2 4"
+          />
+        ))}
+        
         <XAxis
           dataKey="timestamp"
           stroke="#888888"
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={formatXAxisTick}
+          tickFormatter={spansMultipleDays && !useTimeBased ? formatDateTick : formatXAxisTick}
           height={30}
+          interval="preserveStartEnd"
         />
-        
-        {/* Add a second XAxis for date labels when spanning multiple days */}
-        {spansMultipleDays && !useTimeBased && (
-          <XAxis
-            dataKey="timestamp"
-            axisLine={false}
-            tickLine={false}
-            height={25}
-            xAxisId="date-axis"
-            orientation="bottom"
-            tick={null} 
-            label=""   
-          />
-        )}
         
         <YAxis
           stroke="#888888"

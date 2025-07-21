@@ -1,12 +1,10 @@
 
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { SensorChart } from "./SensorChart";
-import { DateMarkers } from "./DateMarkers";
 import { 
-  dataSpansMultipleDays, 
-  groupDataByDate
+  dataSpansMultipleDays
 } from "@/lib/graph-utils";
 
 interface SensorGraphProps {
@@ -20,9 +18,6 @@ export function SensorGraph({ data, type, dateRangeSpanDays = 1 }: SensorGraphPr
 
   // Check if data spans multiple days
   const spansMultipleDays = useMemo(() => dataSpansMultipleDays(data), [data]);
-
-  // Group data by date for multi-day display
-  const dateGroups = useMemo(() => groupDataByDate(data), [data, spansMultipleDays]);
 
   const chartData = useMemo(
     () =>
@@ -53,7 +48,7 @@ export function SensorGraph({ data, type, dateRangeSpanDays = 1 }: SensorGraphPr
   const padding = (maxValue - minValue) * 0.1; // Add 10% padding to min/max
 
   // Determine whether to use date-based or time-based x-axis based on dateRangeSpanDays
-  const useTimeBased = dateRangeSpanDays <= 3;
+  const useTimeBased = dateRangeSpanDays <= 1; // Changed from <= 3 to <= 1
 
   return (
     <AnimatePresence mode="wait">
@@ -75,11 +70,6 @@ export function SensorGraph({ data, type, dateRangeSpanDays = 1 }: SensorGraphPr
             useTimeBased={useTimeBased}
             spansMultipleDays={spansMultipleDays}
           />
-          
-          {/* Custom date markers that appear below the chart */}
-          {spansMultipleDays && !useTimeBased && (
-            <DateMarkers dateGroups={dateGroups} />
-          )}
         </div>
       </motion.div>
     </AnimatePresence>
