@@ -60,3 +60,31 @@ export function dataSpansMultipleDays(data: { timestamp: Date }[]): boolean {
   
   return firstDay !== lastDay;
 }
+
+// Format date for x-axis when showing dates instead of times
+export function formatDateTick(timestamp: string): string {
+  const date = new Date(timestamp);
+  return format(date, 'MMM dd');
+}
+
+// Get date transitions for adding reference lines
+export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp: Date }>): Array<{ timestamp: string; date: string }> {
+  if (data.length === 0) return [];
+  
+  const transitions: Array<{ timestamp: string; date: string }> = [];
+  let currentDate = data[0].rawTimestamp.toISOString().split('T')[0];
+  
+  // Find where each new date begins
+  for (let i = 1; i < data.length; i++) {
+    const itemDate = data[i].rawTimestamp.toISOString().split('T')[0];
+    if (itemDate !== currentDate) {
+      transitions.push({
+        timestamp: data[i].timestamp,
+        date: itemDate
+      });
+      currentDate = itemDate;
+    }
+  }
+  
+  return transitions;
+}
