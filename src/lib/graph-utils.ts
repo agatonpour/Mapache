@@ -67,23 +67,56 @@ export function formatDateTick(timestamp: string): string {
   return format(date, 'MMM dd');
 }
 
-// Get date transitions for adding reference lines
-export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp: Date }>): Array<{ timestamp: string; date: string }> {
+// Get date transitions for adding reference lines and center positions for date labels
+export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp: Date }>): Array<{ timestamp: string; date: string; centerTimestamp?: string }> {
   if (data.length === 0) return [];
   
-  const transitions: Array<{ timestamp: string; date: string }> = [];
+  const transitions: Array<{ timestamp: string; date: string; centerTimestamp?: string }> = [];
+  const dateRanges = new Map<string, { start: number; end: number; timestamps: string[] }>();
+  
+  // Group data by date and find ranges
+  data.forEach((item, index) => {
+    const dateKey = item.rawTimestamp.toISOString().split('T')[0];
+    if (!dateRanges.has(dateKey)) {
+      dateRanges.set(dateKey, { start: index, end: index, timestamps: [item.timestamp] });
+    } else {
+      const range = dateRanges.get(dateKey)!;
+      range.end = index;
+      range.timestamps.push(item.timestamp);
+    }
+  });
+  
+  // Create transitions between dates
   let currentDate = data[0].rawTimestamp.toISOString().split('T')[0];
   
-  // Find where each new date begins
-  for (let i = 1; i < data.length; i++) {
-    const itemDate = data[i].rawTimestamp.toISOString().split('T')[0];
-    if (itemDate !== currentDate) {
+  // Add center timestamps for each date range
+  dateRanges.forEach((range, dateKey) => {
+    const centerIndex = Math.floor(range.timestamps.length / 2);
+    const centerTimestamp = range.timestamps[centerIndex];
+    
+    // Find if this is a transition point (not the first date)
+    if (dateKey !== currentDate) {
       transitions.push({
-        timestamp: data[i].timestamp,
-        date: itemDate
+        timestamp: data[range.start].timestamp, // Transition point
+        date: dateKey,
+        centerTimestamp: centerTimestamp // Center of this date's range
       });
-      currentDate = itemDate;
     }
+  });
+  
+  // For the first date, we need to add its center timestamp separately
+  const firstDateKey = data[0].rawTimestamp.toISOString().split('T')[0];
+  const firstDateRange = dateRanges.get(firstDateKey);
+  if (firstDateRange) {
+    const centerIndex = Math.floor(firstDateRange.timestamps.length / 2);
+    const centerTimestamp = firstDateRange.timestamps[centerIndex];
+    
+    // Add the first date's center to the beginning
+    transitions.unshift({
+      timestamp: data[0].timestamp,
+      date: firstDateKey,
+      centerTimestamp: centerTimestamp
+    });
   }
   
   return transitions;
