@@ -55,7 +55,12 @@ export default function Index() {
           
           const filteredReadings = readings.filter(reading => {
             const readingDate = new Date(reading.timestamp);
-            return readingDate >= startDate && readingDate < endDateLimit;
+            const hour = readingDate.getHours();
+            
+            // Only include readings between 11:00 and 17:00 (11:00-16:59)
+            const isWithinTimeRange = hour >= 11 && hour < 17;
+            
+            return readingDate >= startDate && readingDate < endDateLimit && isWithinTimeRange;
           });
           
           return [sensorType, filteredReadings];
