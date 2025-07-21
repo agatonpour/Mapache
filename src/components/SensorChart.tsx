@@ -46,14 +46,14 @@ export function SensorChart({
       >
         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         
-        {/* Add subtle reference lines between dates for multi-day ranges */}
+        {/* Add prominent reference lines between dates for multi-day ranges */}
         {dateTransitions.map((transition, index) => (
           <ReferenceLine
             key={`date-transition-${index}`}
             x={transition.timestamp}
-            stroke="#e0e0e0"
-            strokeWidth={1}
-            strokeDasharray="2 4"
+            stroke="#888888"
+            strokeWidth={2}
+            strokeDasharray="4 2"
           />
         ))}
         
@@ -65,7 +65,8 @@ export function SensorChart({
           axisLine={false}
           tickFormatter={spansMultipleDays && !useTimeBased ? formatDateTick : formatXAxisTick}
           height={30}
-          interval="preserveStartEnd"
+          interval={spansMultipleDays && !useTimeBased ? 0 : "preserveStartEnd"}
+          ticks={spansMultipleDays && !useTimeBased ? dateTransitions.map(t => t.centerTimestamp).filter(Boolean) : undefined}
         />
         
         <YAxis
