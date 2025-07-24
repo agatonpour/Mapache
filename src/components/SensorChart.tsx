@@ -38,22 +38,29 @@ export function SensorChart({
   // Get date transitions for reference lines (only for multi-day ranges)
   const dateTransitions = spansMultipleDays && !useTimeBased ? getDateTransitions(data) : [];
 
-  // Track displayed hours to prevent duplicates for single day view
-  const displayedHours = new Set<string>();
+  // For single day view, get unique full hour timestamps
+  const getFullHourTicks = () => {
+    if (spansMultipleDays && !useTimeBased) {
+      return dateTransitions.map(t => t.centerTimestamp).filter(Boolean);
+    }
+    
+    const fullHourTicks = new Set<string>();
+    data.forEach(point => {
+      const date = new Date(point.timestamp);
+      if (date.getMinutes() === 0 && date.getSeconds() === 0) {
+        fullHourTicks.add(point.timestamp);
+      }
+    });
+    return Array.from(fullHourTicks);
+  };
+
+  const xAxisTicks = getFullHourTicks();
   
-  const formatUniqueXAxisTick = (timestamp: string): string => {
+  const formatXAxisTickValue = (timestamp: string): string => {
     if (spansMultipleDays && !useTimeBased) {
       return formatDateTick(timestamp);
     }
-    
-    const hourString = formatXAxisTick(timestamp);
-    
-    if (displayedHours.has(hourString)) {
-      return '';
-    }
-    
-    displayedHours.add(hourString);
-    return hourString;
+    return formatXAxisTick(timestamp);
   };
 
   return (
@@ -81,10 +88,10 @@ export function SensorChart({
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={formatUniqueXAxisTick}
+          tickFormatter={formatXAxisTickValue}
           height={30}
-          interval={spansMultipleDays && !useTimeBased ? 0 : "preserveStartEnd"}
-          ticks={spansMultipleDays && !useTimeBased ? dateTransitions.map(t => t.centerTimestamp).filter(Boolean) : undefined}
+          interval={0}
+          ticks={xAxisTicks}
         />
         
         <YAxis
