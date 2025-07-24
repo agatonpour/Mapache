@@ -38,20 +38,21 @@ export function SensorChart({
   // Get date transitions for reference lines (only for multi-day ranges)
   const dateTransitions = spansMultipleDays && !useTimeBased ? getDateTransitions(data) : [];
 
-  // For single day view, get unique full hour timestamps
+  // For single day view, get only full hour timestamps (ending with :00)
   const getFullHourTicks = () => {
     if (spansMultipleDays && !useTimeBased) {
       return dateTransitions.map(t => t.centerTimestamp).filter(Boolean);
     }
     
-    const fullHourTicks = new Set<string>();
+    // Find data points where minutes and seconds are 00
+    const fullHourTicks: string[] = [];
     data.forEach(point => {
-      const date = new Date(point.timestamp);
+      const date = new Date(point.rawTimestamp);
       if (date.getMinutes() === 0 && date.getSeconds() === 0) {
-        fullHourTicks.add(point.timestamp);
+        fullHourTicks.push(point.timestamp);
       }
     });
-    return Array.from(fullHourTicks);
+    return fullHourTicks;
   };
 
   const xAxisTicks = getFullHourTicks();
