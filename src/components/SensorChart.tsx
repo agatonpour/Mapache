@@ -44,11 +44,16 @@ export function SensorChart({
       return dateTransitions.map(t => t.centerTimestamp).filter(Boolean);
     }
     
-    // Find data points where minutes and seconds are 00
+    // Find unique full hour timestamps (one per hour)
+    const seenHours = new Set<number>();
     const fullHourTicks: string[] = [];
+    
     data.forEach(point => {
       const date = new Date(point.rawTimestamp);
-      if (date.getMinutes() === 0 && date.getSeconds() === 0) {
+      const hour = date.getHours();
+      
+      if (date.getMinutes() === 0 && date.getSeconds() === 0 && !seenHours.has(hour)) {
+        seenHours.add(hour);
         fullHourTicks.push(point.timestamp);
       }
     });
