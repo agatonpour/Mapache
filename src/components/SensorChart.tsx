@@ -94,10 +94,16 @@ export function SensorChart({
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={formatXAxisTickValue}
+          tickFormatter={(value, index) => {
+            // Only show ticks for full hour marks
+            const date = new Date(value);
+            if (date.getMinutes() === 0 && date.getSeconds() === 0) {
+              return spansMultipleDays && !useTimeBased ? formatDateTick(value) : formatXAxisTick(value);
+            }
+            return '';
+          }}
           height={30}
           interval={0}
-          ticks={xAxisTicks}
         />
         
         <YAxis
