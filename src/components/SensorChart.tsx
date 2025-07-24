@@ -38,23 +38,25 @@ export function SensorChart({
   // Get date transitions for reference lines (only for multi-day ranges)
   const dateTransitions = spansMultipleDays && !useTimeBased ? getDateTransitions(data) : [];
 
-  // Track displayed hours to prevent duplicates for single day view
-  const displayedHours = new Set<string>();
-  
-  const formatUniqueXAxisTick = (timestamp: string): string => {
-    if (spansMultipleDays && !useTimeBased) {
-      return formatDateTick(timestamp);
-    }
+  // Create a memoized formatter that tracks displayed hours
+  const tickFormatter = React.useMemo(() => {
+    const displayedHours = new Set<string>();
     
-    const hourString = formatXAxisTick(timestamp);
-    
-    if (displayedHours.has(hourString)) {
-      return '';
-    }
-    
-    displayedHours.add(hourString);
-    return hourString;
-  };
+    return (timestamp: string): string => {
+      if (spansMultipleDays && !useTimeBased) {
+        return formatDateTick(timestamp);
+      }
+      
+      const hourString = formatXAxisTick(timestamp);
+      
+      if (displayedHours.has(hourString)) {
+        return '';
+      }
+      
+      displayedHours.add(hourString);
+      return hourString;
+    };
+  }, [spansMultipleDays, useTimeBased, data]);
 
   return (
     <ResponsiveContainer>
@@ -81,7 +83,7 @@ export function SensorChart({
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={formatUniqueXAxisTick}
+          tickFormatter={tickFormatter}
           height={30}
           interval={spansMultipleDays && !useTimeBased ? 0 : "preserveStartEnd"}
           ticks={spansMultipleDays && !useTimeBased ? dateTransitions.map(t => t.centerTimestamp).filter(Boolean) : undefined}
