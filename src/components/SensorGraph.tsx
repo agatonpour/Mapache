@@ -6,6 +6,7 @@ import { SensorChart } from "./SensorChart";
 import { 
   dataSpansMultipleDays
 } from "@/lib/graph-utils";
+import { interpolateGaps, type InterpolatedSensorData } from "@/lib/interpolation-utils";
 
 interface SensorGraphProps {
   data: SensorData[];
@@ -19,9 +20,12 @@ export function SensorGraph({ data, type, dateRangeSpanDays = 1 }: SensorGraphPr
   // Check if data spans multiple days
   const spansMultipleDays = useMemo(() => dataSpansMultipleDays(data), [data]);
 
+  // Apply interpolation to fill gaps in data
+  const interpolatedData = useMemo(() => interpolateGaps(data), [data]);
+  
   const chartData = useMemo(
     () =>
-      data.map((item) => {
+      interpolatedData.map((item) => {
         // Apply transformation for display values
         let displayValue = item.value;
         
@@ -36,9 +40,10 @@ export function SensorGraph({ data, type, dateRangeSpanDays = 1 }: SensorGraphPr
           timestamp: item.timestamp.toISOString(), // Store full timestamp as ISO string
           value: displayValue,
           rawTimestamp: item.timestamp, // Keep raw timestamp for custom formatting
+          isInterpolated: (item as InterpolatedSensorData).isInterpolated || false,
         };
       }),
-    [data, type]
+    [interpolatedData, type]
   );
 
   // Calculate min and max for the y-axis

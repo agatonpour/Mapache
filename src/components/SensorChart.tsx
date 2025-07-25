@@ -15,7 +15,7 @@ import { formatXAxisTick, formatDateTick, getDateTransitions } from "@/lib/graph
 import { SensorChartTooltip } from "./SensorChartTooltip";
 
 interface SensorChartProps {
-  data: Array<{ timestamp: string; value: number; rawTimestamp: Date }>;
+  data: Array<{ timestamp: string; value: number; rawTimestamp: Date; isInterpolated?: boolean }>;
   type: SensorType;
   minValue: number;
   maxValue: number;
@@ -116,6 +116,22 @@ export function SensorChart({
           dot={false}
           animationDuration={1000}
           isAnimationActive={true}
+          connectNulls={false}
+        />
+        
+        {/* Separate line for interpolated data with visual distinction */}
+        <Line
+          type="monotone"
+          dataKey="value"
+          data={data.filter(d => d.isInterpolated)}
+          stroke={config.color}
+          strokeWidth={1}
+          strokeDasharray="5 5"
+          strokeOpacity={0.6}
+          dot={false}
+          animationDuration={1000}
+          isAnimationActive={true}
+          connectNulls={false}
         />
       </LineChart>
     </ResponsiveContainer>
