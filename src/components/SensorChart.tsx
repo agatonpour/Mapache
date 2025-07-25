@@ -15,7 +15,7 @@ import { formatXAxisTick, formatDateTick, getDateTransitions } from "@/lib/graph
 import { SensorChartTooltip } from "./SensorChartTooltip";
 
 interface SensorChartProps {
-  data: Array<{ timestamp: string; value: number; rawTimestamp: Date; isInterpolated?: boolean }>;
+  data: Array<{ timestamp: string; value: number; rawTimestamp: Date }>;
   type: SensorType;
   minValue: number;
   maxValue: number;
@@ -38,22 +38,35 @@ export function SensorChart({
   // Get date transitions for reference lines (only for multi-day ranges)
   const dateTransitions = spansMultipleDays && !useTimeBased ? getDateTransitions(data) : [];
 
-  // Track displayed hours to prevent duplicates for single day view
-  const displayedHours = new Set<string>();
+  // For single day view, get only full hour timestamps (ending with :00)
+  const getFullHourTicks = () => {
+    if (spansMultipleDays && !useTimeBased) {
+      return dateTransitions.map(t => t.centerTimestamp).filter(Boolean);
+    }
+    
+    // Find unique full hour timestamps (one per hour)
+    const seenHours = new Set<number>();
+    const fullHourTicks: string[] = [];
+    
+    data.forEach(point => {
+      const date = new Date(point.rawTimestamp);
+      const hour = date.getHours();
+      
+      if (date.getMinutes() === 0 && date.getSeconds() === 0 && !seenHours.has(hour)) {
+        seenHours.add(hour);
+        fullHourTicks.push(point.timestamp);
+      }
+    });
+    return fullHourTicks;
+  };
+
+  const xAxisTicks = getFullHourTicks();
   
-  const formatUniqueXAxisTick = (timestamp: string): string => {
+  const formatXAxisTickValue = (timestamp: string): string => {
     if (spansMultipleDays && !useTimeBased) {
       return formatDateTick(timestamp);
     }
-    
-    const hourString = formatXAxisTick(timestamp);
-    
-    if (displayedHours.has(hourString)) {
-      return '';
-    }
-    
-    displayedHours.add(hourString);
-    return hourString;
+    return formatXAxisTick(timestamp);
   };
 
   return (
@@ -81,10 +94,16 @@ export function SensorChart({
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={formatUniqueXAxisTick}
+          tickFormatter={(value, index) => {
+            // Only show ticks for full hour marks
+            const date = new Date(value);
+            if (date.getMinutes() === 0 && date.getSeconds() === 0) {
+              return spansMultipleDays && !useTimeBased ? formatDateTick(value) : formatXAxisTick(value);
+            }
+            return '';
+          }}
           height={30}
-          interval={spansMultipleDays && !useTimeBased ? 0 : "preserveStartEnd"}
-          ticks={spansMultipleDays && !useTimeBased ? dateTransitions.map(t => t.centerTimestamp).filter(Boolean) : undefined}
+          interval={0}
         />
         
         <YAxis
@@ -116,22 +135,6 @@ export function SensorChart({
           dot={false}
           animationDuration={1000}
           isAnimationActive={true}
-          connectNulls={false}
-        />
-        
-        {/* Separate line for interpolated data with visual distinction */}
-        <Line
-          type="monotone"
-          dataKey="value"
-          data={data.filter(d => d.isInterpolated)}
-          stroke={config.color}
-          strokeWidth={1}
-          strokeDasharray="5 5"
-          strokeOpacity={0.6}
-          dot={false}
-          animationDuration={1000}
-          isAnimationActive={true}
-          connectNulls={false}
         />
       </LineChart>
     </ResponsiveContainer>
