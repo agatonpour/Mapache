@@ -4,7 +4,7 @@ import { SensorData } from "./mock-data";
 export const MANUAL_EXPECTED_INTERVAL_MS: number | null = null;
 
 // Multiplier for gap detection - gaps larger than this times the expected interval will be interpolated
-export const GAP_THRESHOLD_MULTIPLIER = 1.5;
+export const GAP_THRESHOLD_MULTIPLIER = 2;
 
 export interface InterpolatedSensorData extends SensorData {
   isInterpolated?: boolean;
@@ -95,19 +95,17 @@ export function interpolateGaps(
     const timeDiff = currentPoint.timestamp.getTime() - prevPoint.timestamp.getTime();
     const gapThreshold = effectiveExpectedInterval * GAP_THRESHOLD_MULTIPLIER;
     
-    // If gap is significant, add interpolated points
+    // If gap is significant, add interpolated points at expectedInterval steps
     if (timeDiff > gapThreshold) {
-      console.log(`Detected gap of ${timeDiff}ms between data points, interpolating...`);
+      console.log(`Detected gap of ${timeDiff}ms (threshold: ${gapThreshold}ms), interpolating...`);
       
-      // Calculate how many points to interpolate
-      const numPointsToAdd = Math.floor(timeDiff / effectiveExpectedInterval) - 1;
+      // Add interpolated points at every expectedIntervalMs step
+      let currentTime = prevPoint.timestamp.getTime() + effectiveExpectedInterval;
+      const endTime = currentPoint.timestamp.getTime();
       
-      // Add interpolated points
-      for (let j = 1; j <= numPointsToAdd; j++) {
-        const timeRatio = j / (numPointsToAdd + 1);
-        const interpolatedTimestamp = new Date(
-          prevPoint.timestamp.getTime() + timeDiff * timeRatio
-        );
+      while (currentTime < endTime) {
+        const timeRatio = (currentTime - prevPoint.timestamp.getTime()) / timeDiff;
+        const interpolatedTimestamp = new Date(currentTime);
         const interpolatedValue = linearInterpolate(
           prevPoint.value, 
           currentPoint.value, 
@@ -120,6 +118,8 @@ export function interpolateGaps(
           timestamp: interpolatedTimestamp,
           isInterpolated: true
         });
+        
+        currentTime += effectiveExpectedInterval;
       }
     }
     
