@@ -5,8 +5,12 @@
   "type": "module",
   "scripts": {
     "build": "vite build && tsc --project tsconfig.node.json",
+    "build:server": "tsc --project tsconfig.node.json",
     "start": "node dist/server/index.js",
+    "start:server": "node dist/server/index.js", 
     "dev": "vite",
+    "dev:server": "npm run build:server && node dist/server/index.js",
+    "dev:full": "npm run build:server && concurrently \"npm run start:server\" \"npm run dev\"",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"
