@@ -7,7 +7,7 @@ export function Header() {
     <div className="text-center space-y-2">
       <img src={RaccoonbotLogo} alt="Raccoonbot Logo" className="mx-auto" style={{ width: '250px', height: 'auto' }}/>
       <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-        Mapache: The Raccoonbot Interface App
+        Mapache: The Racconbot App
       </h1>
       <p className="text-gray-500">
         Environmental Monitoring 2.0
