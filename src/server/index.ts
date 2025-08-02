@@ -4,7 +4,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { SerialPort } from 'serialport';
-import { serialService } from '../lib/serial-service';
+import { serialService } from '../lib/serial-service.js';
 
 const app = express();
 const server = http.createServer(app);
