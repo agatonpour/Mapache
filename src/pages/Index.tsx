@@ -3,10 +3,11 @@ import { motion } from "framer-motion";
 import { Header } from "@/components/Header";
 import { SensorGrid } from "@/components/SensorGrid";
 import { SensorHistory } from "@/components/SensorHistory";
+import { RaccoonBotStatus } from "@/components/RaccoonBotStatus";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { fetchReadingsForDateRange } from "@/lib/firestore-service";
+import { fetchReadingsForDateRange, fetchLatestStatusData, type StatusData } from "@/lib/firestore-service";
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
@@ -17,6 +18,7 @@ export default function Index() {
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const [loading, setLoading] = useState(false);
   const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
+  const [statusData, setStatusData] = useState<StatusData | null>(null);
   
   // Date range state - initialize both to today
   const today = new Date();
@@ -44,7 +46,12 @@ export default function Index() {
       const endDateStr = endDate.toISOString().split('T')[0];
       
       console.log(`Fetching data from ${startDateStr} to ${endDateStr}`);
-      const data = await fetchReadingsForDateRange(startDateStr, endDateStr);
+      
+      // Fetch both sensor data and status data
+      const [data, latestStatus] = await Promise.all([
+        fetchReadingsForDateRange(startDateStr, endDateStr),
+        fetchLatestStatusData()
+      ]);
       
       // Filter data to make sure it falls within selected date range
       const filteredData = Object.fromEntries(
@@ -68,6 +75,7 @@ export default function Index() {
       ) as Record<SensorType, SensorData[]>;
       
       setSensorData(filteredData);
+      setStatusData(latestStatus);
       setDataLastUpdated(new Date());
       
       // Show toast on success
@@ -98,7 +106,9 @@ export default function Index() {
   const dateRangeSpanDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white relative">
+      <RaccoonBotStatus statusData={statusData} />
+      
       <div className="container max-w-7xl mx-auto px-4 py-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
