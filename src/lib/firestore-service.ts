@@ -19,7 +19,18 @@ export interface FirestoreReading {
   pressure_pa: number;
   tvoc_ppb: number;
   eco2_ppm: number;
+  battery_percent: number;
+  solar_watts: number;
+  awake_hhmm: string;
   timestamp: string | Timestamp; // ISO string or Firestore timestamp
+}
+
+// Interface for the status data (battery, solar, awake time)
+export interface StatusData {
+  battery_percent: number;
+  solar_watts: number;
+  awake_hhmm: string;
+  timestamp: Date;
 }
 
 // Function to fetch readings for a specific date range
@@ -169,6 +180,47 @@ export async function fetchReadingsForDate(dateStr: string): Promise<Record<Sens
       tvoc: [],
       eco2: []
     };
+  }
+}
+
+// Function to get the latest status data (battery, solar, awake time)
+export async function fetchLatestStatusData(): Promise<StatusData | null> {
+  try {
+    // Get today's date in YYYY-MM-DD format
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Get reference to today's document
+    const dateDoc = doc(db, "raccoonbot_data", today);
+    const readingsCollectionRef = collection(dateDoc, "readings");
+    
+    // Query to get the latest reading (ordered by timestamp descending, limit 1)
+    const q = query(readingsCollectionRef, orderBy("timestamp", "desc"));
+    
+    const querySnapshot = await getDocs(q);
+    
+    if (querySnapshot.empty) {
+      console.log("No status data found for today");
+      return null;
+    }
+    
+    // Get the most recent reading
+    const latestDoc = querySnapshot.docs[0];
+    const reading = latestDoc.data() as FirestoreReading;
+    
+    // Convert timestamp to JavaScript Date
+    const timestamp = typeof reading.timestamp === 'string' 
+      ? new Date(reading.timestamp)
+      : reading.timestamp.toDate();
+    
+    return {
+      battery_percent: reading.battery_percent || 0,
+      solar_watts: reading.solar_watts || 0,
+      awake_hhmm: reading.awake_hhmm || "0:00",
+      timestamp
+    };
+  } catch (error) {
+    console.error("Error fetching latest status data:", error);
+    return null;
   }
 }
 
