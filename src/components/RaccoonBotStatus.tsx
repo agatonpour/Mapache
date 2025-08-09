@@ -1,4 +1,4 @@
-import { Battery, BatteryLow, BatteryWarning } from "lucide-react";
+import { BatteryFull, BatteryMedium, BatteryLow } from "lucide-react";
 import { StatusData } from "@/lib/firestore-service";
 
 interface RaccoonBotStatusProps {
@@ -10,7 +10,7 @@ export function RaccoonBotStatus({ statusData }: RaccoonBotStatusProps) {
     return (
       <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-sm border border-gray-200">
         <div className="flex items-center text-gray-400">
-          <Battery className="h-5 w-5 mr-2" />
+          <BatteryLow className="h-5 w-5 mr-2" />
           <span className="text-sm">No status data</span>
         </div>
       </div>
@@ -18,14 +18,14 @@ export function RaccoonBotStatus({ statusData }: RaccoonBotStatusProps) {
   }
 
   // Determine battery icon and color based on percentage
-  let BatteryIcon = Battery;
+  let BatteryIcon = BatteryFull;
   let batteryColor = "text-green-600";
   
   if (statusData.battery_percent <= 20) {
     BatteryIcon = BatteryLow;
     batteryColor = "text-red-600";
   } else if (statusData.battery_percent <= 59) {
-    BatteryIcon = BatteryWarning;
+    BatteryIcon = BatteryMedium;
     batteryColor = "text-yellow-600";
   }
 
