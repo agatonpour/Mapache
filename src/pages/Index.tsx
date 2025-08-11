@@ -4,6 +4,7 @@ import { Header } from "@/components/Header";
 import { SensorGrid } from "@/components/SensorGrid";
 import { SensorHistory } from "@/components/SensorHistory";
 import { RaccoonBotStatus } from "@/components/RaccoonBotStatus";
+import { CrystalCoveLogo } from "@/components/CrystalCoveLogo";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -108,6 +109,7 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white relative">
       <RaccoonBotStatus statusData={statusData} />
+      <CrystalCoveLogo />
       
       <div className="container max-w-7xl mx-auto px-4 py-8">
         <motion.div
