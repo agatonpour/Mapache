@@ -6,7 +6,8 @@ import {
   Timestamp,
   orderBy,
   query,
-  where
+  where,
+  limit
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { SensorData, SensorType } from "./mock-data";
@@ -189,18 +190,42 @@ export async function fetchLatestStatusData(): Promise<StatusData | null> {
     // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split('T')[0];
     
-    // Get reference to today's document
-    const dateDoc = doc(db, "raccoonbot_data", today);
-    const readingsCollectionRef = collection(dateDoc, "readings");
+    // Try to get data from today first
+    let dateDoc = doc(db, "raccoonbot_data", today);
+    let readingsCollectionRef = collection(dateDoc, "readings");
+    let q = query(readingsCollectionRef, orderBy("timestamp", "desc"), limit(1));
+    let querySnapshot = await getDocs(q);
     
-    // Query to get the latest reading (ordered by timestamp descending, limit 1)
-    const q = query(readingsCollectionRef, orderBy("timestamp", "desc"));
-    
-    const querySnapshot = await getDocs(q);
+    // If no data for today, try the last 7 days
+    if (querySnapshot.empty) {
+      console.log("No status data found for today, searching recent days...");
+      
+      for (let i = 1; i <= 7; i++) {
+        const pastDate = new Date();
+        pastDate.setDate(pastDate.getDate() - i);
+        const pastDateStr = pastDate.toISOString().split('T')[0];
+        
+        dateDoc = doc(db, "raccoonbot_data", pastDateStr);
+        readingsCollectionRef = collection(dateDoc, "readings");
+        q = query(readingsCollectionRef, orderBy("timestamp", "desc"), limit(1));
+        querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          console.log(`Found status data from ${pastDateStr}`);
+          break;
+        }
+      }
+    }
     
     if (querySnapshot.empty) {
-      console.log("No status data found for today");
-      return null;
+      console.log("No status data found in the last 7 days");
+      // Return default values instead of null
+      return {
+        battery_percent: 0,
+        solar_watts: 0,
+        awake_hhmm: "0:00",
+        timestamp: new Date()
+      };
     }
     
     // Get the most recent reading
@@ -220,7 +245,13 @@ export async function fetchLatestStatusData(): Promise<StatusData | null> {
     };
   } catch (error) {
     console.error("Error fetching latest status data:", error);
-    return null;
+    // Return default values instead of null
+    return {
+      battery_percent: 0,
+      solar_watts: 0,
+      awake_hhmm: "0:00",
+      timestamp: new Date()
+    };
   }
 }
 

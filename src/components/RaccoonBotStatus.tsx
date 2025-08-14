@@ -6,25 +6,22 @@ interface RaccoonBotStatusProps {
 }
 
 export function RaccoonBotStatus({ statusData }: RaccoonBotStatusProps) {
-  if (!statusData) {
-    return (
-      <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-sm border border-gray-200">
-        <div className="flex items-center text-gray-400">
-          <BatteryLow className="h-5 w-5 mr-2" />
-          <span className="text-sm">No status data</span>
-        </div>
-      </div>
-    );
-  }
+  // statusData should never be null now, but provide fallback just in case
+  const data = statusData || {
+    battery_percent: 0,
+    solar_watts: 0,
+    awake_hhmm: "0:00",
+    timestamp: new Date()
+  };
 
   // Determine battery icon and color based on percentage
   let BatteryIcon = BatteryFull;
   let batteryColor = "text-green-600";
   
-  if (statusData.battery_percent <= 20) {
+  if (data.battery_percent <= 20) {
     BatteryIcon = BatteryLow;
     batteryColor = "text-red-600";
-  } else if (statusData.battery_percent <= 59) {
+  } else if (data.battery_percent <= 59) {
     BatteryIcon = BatteryMedium;
     batteryColor = "text-yellow-600";
   }
@@ -35,20 +32,20 @@ export function RaccoonBotStatus({ statusData }: RaccoonBotStatusProps) {
       <div className="flex items-center">
         <BatteryIcon className={`h-5 w-5 mr-2 ${batteryColor}`} />
         <span className={`font-medium ${batteryColor}`}>
-          {statusData.battery_percent}%
+          {data.battery_percent}%
         </span>
       </div>
       
       {/* Solar Power */}
       <div className="text-sm text-gray-700">
         <span className="font-medium">Solar Power: </span>
-        <span>{statusData.solar_watts}W</span>
+        <span>{data.solar_watts}W</span>
       </div>
       
       {/* Awake Time */}
       <div className="text-sm text-gray-700">
         <span className="font-medium">RaccoonBot has been awake for: </span>
-        <span>{statusData.awake_hhmm}</span>
+        <span>{data.awake_hhmm}</span>
       </div>
     </div>
   );
