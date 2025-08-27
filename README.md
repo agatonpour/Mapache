@@ -1,6 +1,7 @@
 # Mapache
 
 **Mapache** is a web application that visualizes environmental sensor data collected by **RaccoonBot**, an autonomous environmental monitoring robot developed at the UC Irvine Robot Ecology Lab.
+Link to Web App: https://raccoonbot---mapache.web.app/
 
 ## Overview
 
