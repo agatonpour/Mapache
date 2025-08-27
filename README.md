@@ -17,7 +17,7 @@ Mapache serves as the frontend interface in an Edge-to-Cloud (IoT) architecture.
 3. **Edge Gateway Processing**  
    The Raspberry Pi server acts as a relay, receiving LoRa signals and forwarding the structured sensor data to the cloud database.
 
-4. **Cloud Database Storage**  
+4. **Cloud Database Storage (Cloud Layer)**  
    The data is securely stored in a Firebase Firestore database, enabling real-time access and historical tracking.
 
 5. **Frontend Interface (Mapache)**  
