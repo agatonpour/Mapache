@@ -1,6 +1,6 @@
 # Mapache
 
-**Mapache** is a web application that visualizes environmental sensor data collected by **RaccoonBot**, an autonomous monitoring robot developed at the UC Irvine Robot Ecology Lab.
+**Mapache** is a web application that visualizes environmental sensor data collected by **RaccoonBot**, an autonomous environmental monitoring robot developed at the UC Irvine Robot Ecology Lab.
 
 ## Overview
 
@@ -27,7 +27,6 @@ Mapache serves as the frontend interface in an Edge-to-Cloud (IoT) architecture.
 
 - Real-time data syncing from Firestore
 - Organized display of sensor values with timestamps
-- Responsive UI built with accessibility in mind
 - Easy to deploy and maintain
 
 ## Tech Stack
@@ -43,7 +42,7 @@ This repository contains only the **frontend client** of the Mapache project. Th
 
 ## Future Work
 
-- Integration of machine learning models for data trend detection, and insights
+- Integration of machine learning models for data trend detection and acquiring ecological insights
 - Enhanced charting and graphing functionality
 
 ## Author
