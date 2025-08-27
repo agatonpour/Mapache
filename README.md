@@ -4,7 +4,7 @@
 
 ## Overview
 
-Mapache serves as the frontend interface in a Edge-to-Cloud (IoT) architecture. It is designed to provide researchers and field operators with live insights into environmental conditions during outdoor robot deployments, as well as export and data download capabilities
+Mapache serves as the frontend interface in an Edge-to-Cloud (IoT) architecture. It is designed to provide researchers and field operators with live insights into environmental conditions during outdoor robot deployments, as well as export and data download capabilities
 
 ## System Architecture
 
