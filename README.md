@@ -3,7 +3,7 @@
 **Mapache** is a web application that visualizes environmental sensor data collected by **RaccoonBot**, an autonomous environmental monitoring robot created by the UC Irvine Robot Ecology Lab and deployed at the Crystal Cove Conservancy, CA
 
 Link to Web App: https://raccoonbot---mapache.web.app/
-(Currently, only data from May 6th to May 9th is available, while waiting for hardware updates to the RaccoonBot)
+(Currently, only data from May 6th to May 9th is available, while waiting for hardware updates on the RaccoonBot)
 
 ## Overview
 
