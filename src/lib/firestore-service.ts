@@ -34,7 +34,7 @@ export interface FirestoreReading {
 
 // Interface for the status data (battery, solar, awake time)
 export interface StatusData {
-  battery_percent: number;
+  soc_percent: number;
   solar_watts: number;
   awake_hhmm: string;
   timestamp: Date;
@@ -225,9 +225,9 @@ export async function fetchLatestStatusData(): Promise<StatusData | null> {
     
     if (querySnapshot.empty) {
       console.log("No status data found in the last 7 days");
-      // Return default values instead of null
+      // Return default values with 92% as default soc_percent
       return {
-        battery_percent: 0,
+        soc_percent: 92,
         solar_watts: 0,
         awake_hhmm: "0:00",
         timestamp: new Date()
@@ -244,16 +244,16 @@ export async function fetchLatestStatusData(): Promise<StatusData | null> {
       : reading.timestamp.toDate();
     
     return {
-      battery_percent: reading.battery_percent || 0,
+      soc_percent: reading.soc_percent || 92,
       solar_watts: reading.solar_watts || 0,
       awake_hhmm: reading.awake_hhmm || "0:00",
       timestamp
     };
   } catch (error) {
     console.error("Error fetching latest status data:", error);
-    // Return default values instead of null
+    // Return default values with 92% as default soc_percent
     return {
-      battery_percent: 0,
+      soc_percent: 92,
       solar_watts: 0,
       awake_hhmm: "0:00",
       timestamp: new Date()
