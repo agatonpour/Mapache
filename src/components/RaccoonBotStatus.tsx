@@ -5,7 +5,7 @@ import { ArrowRight, Battery } from "lucide-react";
 import { type StatusData } from "@/lib/firestore-service";
 
 interface RaccoonBotStatusProps {
-  statusData: StatusData | null;
+  statusData: StatusData;
 }
 
 export function RaccoonBotStatus({ statusData }: RaccoonBotStatusProps) {
@@ -32,14 +32,12 @@ export function RaccoonBotStatus({ statusData }: RaccoonBotStatusProps) {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-gray-900">RaccoonBot Status</h3>
-          {statusData && (
-            <div className="flex items-center gap-2 mt-1">
-              <Battery className="h-3 w-3 text-green-600" />
-              <span className="text-xs text-gray-600 font-medium">
-                {statusData.soc_percent}%
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 mt-1">
+            <Battery className="h-3 w-3 text-green-600" />
+            <span className="text-xs text-gray-600 font-medium">
+              {statusData.soc_percent}%
+            </span>
+          </div>
           <p className="text-xs text-gray-500 mt-1">View detailed status data</p>
         </div>
         <ArrowRight className="h-5 w-5 text-gray-400" />

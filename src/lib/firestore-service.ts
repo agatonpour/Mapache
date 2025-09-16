@@ -191,7 +191,7 @@ export async function fetchReadingsForDate(dateStr: string): Promise<Record<Sens
 }
 
 // Function to get the latest status data (battery, solar, awake time)
-export async function fetchLatestStatusData(): Promise<StatusData | null> {
+export async function fetchLatestStatusData(): Promise<StatusData> {
   try {
     // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split('T')[0];
@@ -224,7 +224,7 @@ export async function fetchLatestStatusData(): Promise<StatusData | null> {
     }
     
     if (querySnapshot.empty) {
-      console.log("No status data found in the last 7 days");
+      console.log("No status data found in the last 7 days, using default 92%");
       // Return default values with 92% as default soc_percent
       return {
         soc_percent: 92,
@@ -243,8 +243,11 @@ export async function fetchLatestStatusData(): Promise<StatusData | null> {
       ? new Date(reading.timestamp)
       : reading.timestamp.toDate();
     
+    const soc_percent = reading.soc_percent || reading.battery_percent || 92;
+    console.log(`Using soc_percent: ${soc_percent} from database`);
+    
     return {
-      soc_percent: reading.soc_percent || 92,
+      soc_percent,
       solar_watts: reading.solar_watts || 0,
       awake_hhmm: reading.awake_hhmm || "0:00",
       timestamp
