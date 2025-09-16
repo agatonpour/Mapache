@@ -54,10 +54,12 @@ export default function Index() {
     setStartDate(newStartDate);
     setEndDate(newEndDate);
     
-    // Update URL params
+    // Update URL params using local date formatting
     const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.set('startDate', newStartDate.toISOString().split('T')[0]);
-    newSearchParams.set('endDate', newEndDate.toISOString().split('T')[0]);
+    const startDateStr = `${newStartDate.getFullYear()}-${String(newStartDate.getMonth() + 1).padStart(2, '0')}-${String(newStartDate.getDate()).padStart(2, '0')}`;
+    const endDateStr = `${newEndDate.getFullYear()}-${String(newEndDate.getMonth() + 1).padStart(2, '0')}-${String(newEndDate.getDate()).padStart(2, '0')}`;
+    newSearchParams.set('startDate', startDateStr);
+    newSearchParams.set('endDate', endDateStr);
     setSearchParams(newSearchParams);
   };
 
@@ -66,13 +68,13 @@ export default function Index() {
     setLoading(true);
     
     try {
-      // Format dates as YYYY-MM-DD
-      const startDateStr = startDate.toISOString().split('T')[0];
-      const endDateStr = endDate.toISOString().split('T')[0];
+      // Format dates as YYYY-MM-DD using local date formatting
+      const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
+      const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
       
       console.log(`Fetching data from ${startDateStr} to ${endDateStr}`);
       
-      // Fetch both sensor data and status data
+      // Fetch both sensor data and always get latest status data
       const [data, latestStatus] = await Promise.all([
         fetchReadingsForDateRange(startDateStr, endDateStr),
         fetchLatestStatusData()
@@ -102,6 +104,8 @@ export default function Index() {
       setSensorData(filteredData);
       setStatusData(latestStatus);
       setDataLastUpdated(new Date());
+      
+      console.log("Latest status data:", latestStatus);
       
       // Show toast on success
       toast({

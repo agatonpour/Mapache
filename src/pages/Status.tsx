@@ -53,10 +53,12 @@ export default function Status() {
     setStartDate(newStartDate);
     setEndDate(newEndDate);
     
-    // Update URL params
+    // Update URL params using local date formatting
     const newSearchParams = new URLSearchParams(searchParams);
-    newSearchParams.set('startDate', newStartDate.toISOString().split('T')[0]);
-    newSearchParams.set('endDate', newEndDate.toISOString().split('T')[0]);
+    const startDateStr = `${newStartDate.getFullYear()}-${String(newStartDate.getMonth() + 1).padStart(2, '0')}-${String(newStartDate.getDate()).padStart(2, '0')}`;
+    const endDateStr = `${newEndDate.getFullYear()}-${String(newEndDate.getMonth() + 1).padStart(2, '0')}-${String(newEndDate.getDate()).padStart(2, '0')}`;
+    newSearchParams.set('startDate', startDateStr);
+    newSearchParams.set('endDate', endDateStr);
     setSearchParams(newSearchParams);
   };
 
