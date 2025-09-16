@@ -16,8 +16,9 @@ export function StatusSensorGraph({ data, type, dateRangeSpanDays = 1 }: StatusS
   
   const chartData = useMemo(() => {
     return data.map((item) => ({
-      timestamp: item.timestamp.getTime(),
+      timestamp: item.timestamp.toISOString(),
       value: item.value,
+      rawTimestamp: item.timestamp,
       formattedTime: item.timestamp.toLocaleTimeString('en-US', { 
         hour: '2-digit', 
         minute: '2-digit', 

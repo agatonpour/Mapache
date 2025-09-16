@@ -12,19 +12,27 @@ import { fetchReadingsForDateRange, fetchLatestStatusData, type StatusData } fro
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 export default function Index() {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedSensor, setSelectedSensor] = useState<SensorType>("temperature");
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const [loading, setLoading] = useState(false);
   const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
   const [statusData, setStatusData] = useState<StatusData | null>(null);
   
-  // Date range state - initialize both to today
+  // Date range state - initialize from URL params or today
   const today = new Date();
-  const [startDate, setStartDate] = useState<Date>(today);
-  const [endDate, setEndDate] = useState<Date>(today);
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const urlStart = searchParams.get('startDate');
+    return urlStart ? new Date(urlStart) : today;
+  });
+  const [endDate, setEndDate] = useState<Date>(() => {
+    const urlEnd = searchParams.get('endDate');
+    return urlEnd ? new Date(urlEnd) : today;
+  });
   
   // Store sensor data
   const [sensorData, setSensorData] = useState<Record<SensorType, SensorData[]>>(
@@ -35,6 +43,12 @@ export default function Index() {
   const handleDateRangeChange = (newStartDate: Date, newEndDate: Date) => {
     setStartDate(newStartDate);
     setEndDate(newEndDate);
+    
+    // Update URL params
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('startDate', newStartDate.toISOString().split('T')[0]);
+    newSearchParams.set('endDate', newEndDate.toISOString().split('T')[0]);
+    setSearchParams(newSearchParams);
   };
 
   // Function to fetch data for selected date range
