@@ -27,11 +27,21 @@ export default function Index() {
   const today = new Date();
   const [startDate, setStartDate] = useState<Date>(() => {
     const urlStart = searchParams.get('startDate');
-    return urlStart ? new Date(urlStart) : today;
+    if (urlStart) {
+      // Parse date string as local date to avoid timezone issues
+      const [year, month, day] = urlStart.split('-').map(Number);
+      return new Date(year, month - 1, day); // month is 0-indexed
+    }
+    return today;
   });
   const [endDate, setEndDate] = useState<Date>(() => {
     const urlEnd = searchParams.get('endDate');
-    return urlEnd ? new Date(urlEnd) : today;
+    if (urlEnd) {
+      // Parse date string as local date to avoid timezone issues
+      const [year, month, day] = urlEnd.split('-').map(Number);
+      return new Date(year, month - 1, day); // month is 0-indexed
+    }
+    return today;
   });
   
   // Store sensor data
