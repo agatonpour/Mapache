@@ -6,15 +6,17 @@ import {
   XAxis,
   YAxis,
   Tooltip,
+  CartesianGrid,
   ReferenceLine,
 } from "recharts";
 import { StatusSensorChartTooltip } from "./StatusSensorChartTooltip";
 import { STATUS_SENSOR_CONFIG, type StatusSensorType } from "@/lib/mock-data";
-import { formatXAxisTick } from "@/lib/graph-utils";
+import { formatXAxisTick, formatDateTick, getDateTransitions } from "@/lib/graph-utils";
 
 interface ChartDataPoint {
-  timestamp: number;
+  timestamp: string;
   value: number;
+  rawTimestamp: Date;
   formattedTime: string;
   formattedDate: string;
   formattedDateTime: string;
@@ -40,74 +42,88 @@ export function StatusSensorChart({
   spansMultipleDays
 }: StatusSensorChartProps) {
   const config = STATUS_SENSOR_CONFIG[type];
+  
+  // Get date transitions for reference lines (only for multi-day ranges)
+  const dateTransitions = spansMultipleDays && !useTimeBased ? getDateTransitions(data) : [];
 
-  // Create date transition markers for multi-day view
-  const dateTransitions = React.useMemo(() => {
-    if (!spansMultipleDays || data.length === 0) return [];
-    
-    const transitions = [];
-    let currentDate = new Date(data[0].timestamp).toDateString();
-    
-    for (let i = 1; i < data.length; i++) {
-      const newDate = new Date(data[i].timestamp).toDateString();
-      if (newDate !== currentDate) {
-        transitions.push({
-          timestamp: data[i].timestamp,
-          date: newDate
-        });
-        currentDate = newDate;
-      }
+  // Track displayed hours to prevent duplicates for single day view
+  const displayedHours = new Set<string>();
+  
+  const formatUniqueXAxisTick = (timestamp: string): string => {
+    if (spansMultipleDays && !useTimeBased) {
+      return formatDateTick(timestamp);
     }
     
-    return transitions;
-  }, [data, spansMultipleDays]);
+    const hourString = formatXAxisTick(timestamp);
+    
+    if (displayedHours.has(hourString)) {
+      return '';
+    }
+    
+    displayedHours.add(hourString);
+    return hourString;
+  };
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-        <XAxis
-          dataKey="timestamp"
-          type="number"
-          scale="time"
-          domain={['dataMin', 'dataMax']}
-          tickFormatter={(timestamp) => formatXAxisTick(new Date(timestamp).toISOString())}
-          axisLine={false}
-          tickLine={false}
-          tick={{ fontSize: 12, fill: '#6b7280' }}
-        />
-        <YAxis
-          domain={[
-            (dataMin: number) => Math.max(config.min, dataMin - padding),
-            (dataMax: number) => Math.min(config.max, dataMax + padding)
-          ]}
-          axisLine={false}
-          tickLine={false}
-          tick={{ fontSize: 12, fill: '#6b7280' }}
-          tickFormatter={config.formatValue}
-        />
-        <Tooltip
-          content={<StatusSensorChartTooltip sensorType={type} />}
-          cursor={{ strokeDasharray: '3 3', stroke: '#94a3b8' }}
-        />
+    <ResponsiveContainer>
+      <LineChart 
+        data={data}
+        margin={{ top: 5, right: 30, left: 20, bottom: spansMultipleDays ? 40 : 5 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
         
-        {/* Date transition lines for multi-day view */}
-        {dateTransitions.map((transition, index) => (
+        {/* Add prominent reference lines between dates for multi-day ranges */}
+        {dateTransitions.slice(1).map((transition, index) => (
           <ReferenceLine
-            key={index}
+            key={`date-transition-${index}`}
             x={transition.timestamp}
-            stroke="#e5e7eb"
-            strokeDasharray="2 2"
-            strokeWidth={1}
+            stroke="#000000"
+            strokeWidth={2}
+            strokeDasharray="4 2"
           />
         ))}
         
+        <XAxis
+          dataKey="timestamp"
+          stroke="#000000"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+          tickFormatter={formatUniqueXAxisTick}
+          height={30}
+          interval={spansMultipleDays && !useTimeBased ? 0 : "preserveStartEnd"}
+          ticks={spansMultipleDays && !useTimeBased ? dateTransitions.map(t => t.centerTimestamp).filter(Boolean) : undefined}
+        />
+        
+        <YAxis
+          stroke="#888888"
+          fontSize={12}
+          tickLine={false}
+          axisLine={false}
+          domain={[
+            Math.max(config.min, minValue - padding),
+            Math.min(config.max, maxValue + padding)
+          ]}
+          tickFormatter={(value) => config.formatValue(value)}
+        />
+        <Tooltip 
+          content={({active, payload, label}) => (
+            <StatusSensorChartTooltip 
+              active={active} 
+              payload={payload} 
+              label={label} 
+              sensorType={type} 
+            />
+          )}
+        />
         <Line
           type="monotone"
           dataKey="value"
           stroke={config.color}
           strokeWidth={2}
           dot={false}
-          activeDot={{ r: 4, stroke: config.color, strokeWidth: 2, fill: "white" }}
+          animationDuration={1000}
+          isAnimationActive={true}
         />
       </LineChart>
     </ResponsiveContainer>

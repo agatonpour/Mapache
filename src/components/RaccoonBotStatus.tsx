@@ -1,7 +1,7 @@
 import React from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { ArrowRight } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { type StatusData } from "@/lib/firestore-service";
 
 interface RaccoonBotStatusProps {
@@ -10,11 +10,24 @@ interface RaccoonBotStatusProps {
 
 export function RaccoonBotStatus({ statusData }: RaccoonBotStatusProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const handleClick = () => {
+    // Preserve current date range when navigating to status page
+    const urlParams = new URLSearchParams();
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    
+    if (startDate) urlParams.set('startDate', startDate);
+    if (endDate) urlParams.set('endDate', endDate);
+    
+    navigate(`/status${urlParams.toString() ? `?${urlParams.toString()}` : ''}`);
+  };
 
   return (
     <Card 
       className="fixed top-4 left-4 z-50 p-4 cursor-pointer transition-all duration-200 hover:shadow-lg border-2 border-gray-200 hover:border-primary/30 bg-white/90 backdrop-blur-sm"
-      onClick={() => navigate('/status')}
+      onClick={handleClick}
     >
       <div className="flex items-center justify-between">
         <div>

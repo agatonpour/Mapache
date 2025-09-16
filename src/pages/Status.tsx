@@ -10,21 +10,28 @@ import { fetchStatusReadingsForDateRange } from "@/lib/status-firestore-service"
 import { DateRangePicker } from "@/components/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { RefreshCw, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 
 export default function Status() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedSensor, setSelectedSensor] = useState<StatusSensorType>("soc_percent");
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const [loading, setLoading] = useState(false);
   const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
   
-  // Date range state - initialize both to today
+  // Date range state - initialize from URL params or today
   const today = new Date();
-  const [startDate, setStartDate] = useState<Date>(today);
-  const [endDate, setEndDate] = useState<Date>(today);
+  const [startDate, setStartDate] = useState<Date>(() => {
+    const urlStart = searchParams.get('startDate');
+    return urlStart ? new Date(urlStart) : today;
+  });
+  const [endDate, setEndDate] = useState<Date>(() => {
+    const urlEnd = searchParams.get('endDate');
+    return urlEnd ? new Date(urlEnd) : today;
+  });
   
   // Store sensor data
   const [sensorData, setSensorData] = useState<Record<StatusSensorType, SensorData[]>>(
@@ -35,6 +42,12 @@ export default function Status() {
   const handleDateRangeChange = (newStartDate: Date, newEndDate: Date) => {
     setStartDate(newStartDate);
     setEndDate(newEndDate);
+    
+    // Update URL params
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('startDate', newStartDate.toISOString().split('T')[0]);
+    newSearchParams.set('endDate', newEndDate.toISOString().split('T')[0]);
+    setSearchParams(newSearchParams);
   };
 
   // Function to fetch data for selected date range
@@ -104,9 +117,15 @@ export default function Status() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white relative">
       {/* Environmental Data Navigation Card */}
-      <Card 
+        <Card 
         className="fixed top-4 left-4 z-50 p-4 cursor-pointer transition-all duration-200 hover:shadow-lg border-2 border-gray-200 hover:border-primary/30 bg-white/90 backdrop-blur-sm"
-        onClick={() => navigate('/')}
+        onClick={() => {
+          // Preserve date range when navigating back
+          const urlParams = new URLSearchParams();
+          urlParams.set('startDate', startDate.toISOString().split('T')[0]);
+          urlParams.set('endDate', endDate.toISOString().split('T')[0]);
+          navigate(`/?${urlParams.toString()}`);
+        }}
       >
         <div className="flex items-center gap-3">
           <ArrowLeft className="h-5 w-5 text-gray-600" />
@@ -169,6 +188,7 @@ export default function Status() {
             selectedSensor={selectedSensor} 
             timeframe={timeframe} 
             data={sensorData[selectedSensor] || []} 
+            allSensorData={sensorData}
             dateRangeSpanDays={dateRangeSpanDays}
           />
         </motion.div>
