@@ -36,7 +36,7 @@ export function RaccoonBotStatus({ statusData }: RaccoonBotStatusProps) {
             <div className="flex items-center gap-2 mt-1">
               <Battery className="h-3 w-3 text-green-600" />
               <span className="text-xs text-gray-600 font-medium">
-                {statusData.battery_percent}%
+                {statusData.soc_percent}%
               </span>
             </div>
           )}
