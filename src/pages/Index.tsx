@@ -21,7 +21,12 @@ export default function Index() {
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const [loading, setLoading] = useState(false);
   const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
-  const [statusData, setStatusData] = useState<StatusData | null>(null);
+  const [statusData, setStatusData] = useState<StatusData>({
+    soc_percent: 92,
+    solar_watts: 0,
+    awake_hhmm: "0:00",
+    timestamp: new Date()
+  });
   
   // Date range state - initialize from URL params or today
   const today = new Date();
