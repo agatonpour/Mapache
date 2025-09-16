@@ -10,7 +10,7 @@ import {
   limit
 } from "firebase/firestore";
 import { db } from "../firebase";
-import { SensorData, SensorType } from "./mock-data";
+import { SensorData, SensorType, StatusSensorType } from "./mock-data";
 
 // Define the shape of a reading from Firestore
 export interface FirestoreReading {
@@ -23,6 +23,12 @@ export interface FirestoreReading {
   battery_percent: number;
   solar_watts: number;
   awake_hhmm: string;
+  soc_percent: number;
+  battery_voltage_v: number;
+  solar_power_w: number;
+  solar_voltage_v: number;
+  solar_current_ma: number;
+  alive_hhmm: string;
   timestamp: string | Timestamp; // ISO string or Firestore timestamp
 }
 
