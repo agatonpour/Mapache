@@ -5,6 +5,7 @@ import { SensorGrid } from "@/components/SensorGrid";
 import { SensorHistory } from "@/components/SensorHistory";
 import { RaccoonBotStatus } from "@/components/RaccoonBotStatus";
 import { CrystalCoveLogo } from "@/components/CrystalCoveLogo";
+import { RaccoonBotSelector, type RaccoonBotId } from "@/components/RaccoonBotSelector";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +19,7 @@ export default function Index() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedSensor, setSelectedSensor] = useState<SensorType>("temperature");
+  const [selectedBot, setSelectedBot] = useState<RaccoonBotId>("crystal-cove");
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const [loading, setLoading] = useState(false);
   const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
@@ -152,12 +154,18 @@ export default function Index() {
         >
           <Header />
 
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
-            <DateRangePicker 
-              startDate={startDate}
-              endDate={endDate}
-              onRangeChange={handleDateRangeChange}
-            />
+          <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              <RaccoonBotSelector 
+                selectedBotId={selectedBot}
+                onBotSelect={setSelectedBot}
+              />
+              <DateRangePicker 
+                startDate={startDate}
+                endDate={endDate}
+                onRangeChange={handleDateRangeChange}
+              />
+            </div>
             
             <div className="flex items-center gap-4">
               <div>
