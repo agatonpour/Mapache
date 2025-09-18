@@ -5,7 +5,7 @@ import { SensorGrid } from "@/components/SensorGrid";
 import { SensorHistory } from "@/components/SensorHistory";
 import { RaccoonBotStatus } from "@/components/RaccoonBotStatus";
 import { CrystalCoveLogo } from "@/components/CrystalCoveLogo";
-import { RaccoonBotSelector, type RaccoonBotId } from "@/components/RaccoonBotSelector";
+import { RaccoonBotSelector, type RaccoonBotId, RACCOON_BOTS } from "@/components/RaccoonBotSelector";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -72,6 +72,11 @@ export default function Index() {
 
   // Function to fetch data for selected date range
   const fetchData = async () => {
+    // Only fetch data for Crystal Cove
+    if (selectedBot !== "crystal-cove") {
+      return;
+    }
+    
     setLoading(true);
     
     try {
@@ -136,7 +141,7 @@ export default function Index() {
   // Initial data fetch - using today's date only
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedBot]);
 
   // Calculate date range span in days
   const dateRangeSpanDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
@@ -194,20 +199,33 @@ export default function Index() {
             </div>
           </div>
 
-          <SensorGrid 
-            sensorData={sensorData} 
-            selectedSensor={selectedSensor} 
-            onSensorSelect={setSelectedSensor} 
-          />
+          {selectedBot === "crystal-cove" ? (
+            <>
+              <SensorGrid 
+                sensorData={sensorData} 
+                selectedSensor={selectedSensor} 
+                onSensorSelect={setSelectedSensor} 
+              />
 
-          <SensorHistory 
-            selectedSensor={selectedSensor} 
-            timeframe={timeframe} 
-            data={sensorData[selectedSensor] || []} 
-            allSensorData={sensorData}
-            onTimeframeChange={setTimeframe} 
-            dateRangeSpanDays={dateRangeSpanDays}
-          />
+              <SensorHistory 
+                selectedSensor={selectedSensor} 
+                timeframe={timeframe} 
+                data={sensorData[selectedSensor] || []} 
+                allSensorData={sensorData}
+                onTimeframeChange={setTimeframe} 
+                dateRangeSpanDays={dateRangeSpanDays}
+              />
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground text-lg">
+                {selectedBot === "add-robot" 
+                  ? "Add a new RaccoonBot to start monitoring" 
+                  : `No data available for ${RACCOON_BOTS.find(bot => bot.id === selectedBot)?.displayName || selectedBot}`
+                }
+              </p>
+            </div>
+          )}
         </motion.div>
       </div>
     </div>
