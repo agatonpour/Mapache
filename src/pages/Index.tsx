@@ -5,7 +5,7 @@ import { SensorGrid } from "@/components/SensorGrid";
 import { SensorHistory } from "@/components/SensorHistory";
 import { RaccoonBotStatus } from "@/components/RaccoonBotStatus";
 import { CrystalCoveLogo } from "@/components/CrystalCoveLogo";
-import { RaccoonBotSelector, type RaccoonBotId, RACCOON_BOTS } from "@/components/RaccoonBotSelector";
+import { RaccoonBotSelector, type RaccoonBotId, type RaccoonBot, RACCOON_BOTS } from "@/components/RaccoonBotSelector";
 import { SENSOR_CONFIG, type SensorData, type SensorType } from "@/lib/mock-data";
 import { type Timeframe } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,10 @@ export default function Index() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedSensor, setSelectedSensor] = useState<SensorType>("temperature");
   const [selectedBot, setSelectedBot] = useState<RaccoonBotId>("crystal-cove");
+  const [customRobots, setCustomRobots] = useState<RaccoonBot[]>(() => {
+    const saved = localStorage.getItem('custom-raccoon-bots');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [timeframe, setTimeframe] = useState<Timeframe>("3m");
   const [loading, setLoading] = useState(false);
   const [dataLastUpdated, setDataLastUpdated] = useState<Date>(new Date());
@@ -143,8 +147,18 @@ export default function Index() {
     fetchData();
   }, [selectedBot]);
 
+  // Handle adding new custom robot
+  const handleAddRobot = (newRobot: RaccoonBot) => {
+    const updatedRobots = [...customRobots, newRobot];
+    setCustomRobots(updatedRobots);
+    localStorage.setItem('custom-raccoon-bots', JSON.stringify(updatedRobots));
+  };
+
   // Calculate date range span in days
   const dateRangeSpanDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  // Get all available robots (default + custom)
+  const allAvailableRobots = [...RACCOON_BOTS, ...customRobots];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white relative">
@@ -164,6 +178,8 @@ export default function Index() {
               <RaccoonBotSelector 
                 selectedBotId={selectedBot}
                 onBotSelect={setSelectedBot}
+                customRobots={customRobots}
+                onAddRobot={handleAddRobot}
               />
               <DateRangePicker 
                 startDate={startDate}
@@ -221,7 +237,7 @@ export default function Index() {
               <p className="text-muted-foreground text-lg">
                 {selectedBot === "add-robot" 
                   ? "Add a new RaccoonBot to start monitoring" 
-                  : `No data available for ${RACCOON_BOTS.find(bot => bot.id === selectedBot)?.displayName || selectedBot}`
+                  : `No data available for ${allAvailableRobots.find(bot => bot.id === selectedBot)?.displayName || selectedBot}`
                 }
               </p>
             </div>
