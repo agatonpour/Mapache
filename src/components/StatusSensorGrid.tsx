@@ -9,7 +9,6 @@ const statusSensorDisplayOrder: StatusSensorType[] = [
   "solar_power_w", 
   "solar_voltage_v",
   "solar_current_ma",
-  "alive_hhmm",
 ];
 
 interface StatusSensorGridProps {

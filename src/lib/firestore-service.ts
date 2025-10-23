@@ -105,7 +105,7 @@ export async function fetchReadingsForDate(dateStr: string): Promise<Record<Sens
     console.log(`Fetching readings for date: ${dateStr}`);
     
     // Get reference to the specific date document
-    const dateDoc = doc(db, "raccoonbot_data", dateStr);
+    const dateDoc = doc(db, "crystal_cove", dateStr);
     
     // Get reference to the 'readings' subcollection
     const readingsCollectionRef = collection(dateDoc, "readings");
@@ -197,7 +197,7 @@ export async function fetchLatestStatusData(): Promise<StatusData> {
     const today = new Date().toISOString().split('T')[0];
     
     // Try to get data from today first
-    let dateDoc = doc(db, "raccoonbot_data", today);
+    let dateDoc = doc(db, "crystal_cove", today);
     let readingsCollectionRef = collection(dateDoc, "readings");
     let q = query(readingsCollectionRef, orderBy("timestamp", "desc"), limit(1));
     let querySnapshot = await getDocs(q);
@@ -211,7 +211,7 @@ export async function fetchLatestStatusData(): Promise<StatusData> {
         pastDate.setDate(pastDate.getDate() - i);
         const pastDateStr = pastDate.toISOString().split('T')[0];
         
-        dateDoc = doc(db, "raccoonbot_data", pastDateStr);
+        dateDoc = doc(db, "crystal_cove", pastDateStr);
         readingsCollectionRef = collection(dateDoc, "readings");
         q = query(readingsCollectionRef, orderBy("timestamp", "desc"), limit(1));
         querySnapshot = await getDocs(q);

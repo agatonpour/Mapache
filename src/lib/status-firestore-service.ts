@@ -21,8 +21,7 @@ export async function fetchStatusReadingsForDateRange(startDateStr: string, endD
       battery_voltage_v: [],
       solar_power_w: [],
       solar_voltage_v: [],
-      solar_current_ma: [],
-      alive_hhmm: []
+      solar_current_ma: []
     };
     
     // Convert string dates to Date objects
@@ -63,8 +62,7 @@ export async function fetchStatusReadingsForDateRange(startDateStr: string, endD
       battery_voltage_v: [],
       solar_power_w: [],
       solar_voltage_v: [],
-      solar_current_ma: [],
-      alive_hhmm: []
+      solar_current_ma: []
     };
   }
 }
@@ -75,7 +73,7 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
     console.log(`Fetching status readings for date: ${dateStr}`);
     
     // Get reference to the specific date document
-    const dateDoc = doc(db, "raccoonbot_data", dateStr);
+    const dateDoc = doc(db, "crystal_cove", dateStr);
     
     // Get reference to the 'readings' subcollection
     const readingsCollectionRef = collection(dateDoc, "readings");
@@ -94,8 +92,7 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
       battery_voltage_v: [],
       solar_power_w: [],
       solar_voltage_v: [],
-      solar_current_ma: [],
-      alive_hhmm: []
+      solar_current_ma: []
     };
     
     // Process each reading document
@@ -137,17 +134,6 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
         value: reading.solar_current_ma || 0, 
         timestamp 
       });
-      
-      // Handle alive_hhmm - convert time string to hours for graphing
-      const aliveTime = reading.alive_hhmm || "0:00";
-      const [hours, minutes] = aliveTime.split(':').map(Number);
-      const timeValue = hours + (minutes / 60);
-      
-      result.alive_hhmm.push({ 
-        type: 'alive_hhmm', 
-        value: timeValue, 
-        timestamp 
-      });
     });
     
     return result;
@@ -159,8 +145,7 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
       battery_voltage_v: [],
       solar_power_w: [],
       solar_voltage_v: [],
-      solar_current_ma: [],
-      alive_hhmm: []
+      solar_current_ma: []
     };
   }
 }
