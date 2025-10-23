@@ -10,13 +10,17 @@ export interface DateGroup {
 
 // Format time based on timestamp - now showing only hours
 export function formatXAxisTick(timestamp: string): string {
+  if (!timestamp) return '';
   const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return '';
   return format(date, 'HH:00'); // Changed from 'HH:mm' to 'HH:00' to show only hours
 }
 
 // Format full date and time for tooltips
 export function formatTooltipLabel(timestamp: string): string {
+  if (!timestamp) return 'Invalid date';
   const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return 'Invalid date';
   return format(date, 'yyyy-MM-dd HH:mm');
 }
 
@@ -63,7 +67,9 @@ export function dataSpansMultipleDays(data: { timestamp: Date }[]): boolean {
 
 // Format date for x-axis when showing dates instead of times
 export function formatDateTick(timestamp: string): string {
+  if (!timestamp) return '';
   const date = new Date(timestamp);
+  if (isNaN(date.getTime())) return '';
   return format(date, 'MMM dd');
 }
 
