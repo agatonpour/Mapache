@@ -129,9 +129,12 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
         timestamp 
       });
       
+      // Try solar_current_a first (Amps), then fall back to solar_current_ma
+      const currentValue = (reading as any).solar_current_a ?? reading.solar_current_ma ?? 0;
+      
       result.solar_current_ma.push({ 
         type: 'solar_current_ma', 
-        value: reading.solar_current_ma || 0, 
+        value: currentValue, 
         timestamp 
       });
     });

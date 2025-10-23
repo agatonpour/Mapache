@@ -28,6 +28,7 @@ export interface FirestoreReading {
   solar_power_w: number;
   solar_voltage_v: number;
   solar_current_ma: number;
+  solar_current_a?: number; // Alternative field name for Amps
   alive_hhmm: string;
   timestamp: string | Timestamp; // ISO string or Firestore timestamp
 }
