@@ -19,5 +19,13 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    exclude: ['serialport', '@serialport/parser-readline', '@serialport/bindings-cpp'],
+  },
+  build: {
+    rollupOptions: {
+      external: ['serialport', '@serialport/parser-readline'],
+    },
+  },
 }));
 //Manual changes
