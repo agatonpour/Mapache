@@ -23,9 +23,20 @@ export function StatusDataDownloadButton({
 }: StatusDataDownloadButtonProps) {
   const handleDownload = () => {
     if (downloadAll && allSensorData) {
-      // Download all sensor data as CSV
-      const headers = ["timestamp", ...Object.keys(allSensorData)];
-      const csvContent = "data:text/csv;charset=utf-8,";
+      // Download all sensor data as CSV - matching environmental page format
+      let csvContent = "Date,Time";
+      
+      // Add column headers for each sensor type with units
+      Object.keys(allSensorData).forEach(sensorType => {
+        const type = sensorType as StatusSensorType;
+        const config = STATUS_SENSOR_CONFIG[type];
+        // Use solar_current_a instead of solar_current_ma
+        const label = sensorType === 'solar_current_ma' 
+          ? 'solar_current_a' 
+          : `${config.label.toLowerCase().replace(/\s+/g, '_')} (${config.unit})`;
+        csvContent += `,${label}`;
+      });
+      csvContent += "\n";
       
       // Create a map of all timestamps
       const allTimestamps = new Set<number>();
@@ -37,31 +48,34 @@ export function StatusDataDownloadButton({
       
       const sortedTimestamps = Array.from(allTimestamps).sort();
       
-      const csvRows = [
-        headers.join(","),
-        ...sortedTimestamps.map(timestamp => {
-          const timestampStr = new Date(timestamp).toISOString();
-          const row = [timestampStr];
-          
-          Object.keys(allSensorData).forEach(sensorType => {
-            const reading = allSensorData[sensorType as StatusSensorType]?.find(
-              r => r.timestamp.getTime() === timestamp
-            );
-            row.push(reading ? reading.value.toString() : "");
-          });
-          
-          return row.join(",");
-        })
-      ];
+      // Create CSV rows with separate date and time columns
+      sortedTimestamps.forEach(timestamp => {
+        const date = new Date(timestamp);
+        const dateStr = date.toLocaleDateString();
+        const timeStr = date.toLocaleTimeString();
+        let row = `${dateStr},${timeStr}`;
+        
+        Object.keys(allSensorData).forEach(sensorType => {
+          const reading = allSensorData[sensorType as StatusSensorType]?.find(
+            r => r.timestamp.getTime() === timestamp
+          );
+          row += `,${reading ? reading.value.toString() : ''}`;
+        });
+        
+        csvContent += row + "\n";
+      });
       
-      const csv = csvContent + csvRows.join("\n");
-      const encodedUri = encodeURI(csv);
+      // Create and download the file
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      
       const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
+      link.href = url;
       link.setAttribute("download", `status_data_${timeframe}.csv`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     } else {
       // Download single sensor data
       const config = STATUS_SENSOR_CONFIG[selectedSensor];
