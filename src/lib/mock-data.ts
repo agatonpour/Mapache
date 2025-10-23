@@ -93,7 +93,7 @@ export const STATUS_SENSOR_CONFIG: Record<StatusSensorType, SensorConfig> = {
     color: "#f59e0b",
     min: 0,
     max: 10,
-    formatValue: (value: number) => value.toFixed(0),
+    formatValue: (value: number) => value.toFixed(2),
   },
   solar_voltage_v: {
     label: "Solar Voltage",
@@ -108,8 +108,8 @@ export const STATUS_SENSOR_CONFIG: Record<StatusSensorType, SensorConfig> = {
     unit: "A",
     color: "#8b5cf6",
     min: 0,
-    max: 2000,
-    formatValue: (value: number) => value.toFixed(0),
+    max: 0.1,
+    formatValue: (value: number) => value.toFixed(3),
   },
 } as const;
 
