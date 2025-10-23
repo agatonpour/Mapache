@@ -13,11 +13,7 @@ interface StatusSensorCardProps {
 
 export function StatusSensorCard({ type, value, timestamp, onClick, isSelected }: StatusSensorCardProps) {
   const config = STATUS_SENSOR_CONFIG[type];
-  
-  // Special formatting for alive_hhmm
-  const displayValue = type === 'alive_hhmm' 
-    ? config.formatValue(value)
-    : config.formatValue(value);
+  const displayValue = config.formatValue(value);
 
   return (
     <Card 
