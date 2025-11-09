@@ -53,7 +53,10 @@ function findPresentHours(readings: SensorData[]): Set<number> {
 }
 
 /**
- * Interpolates a missing reading by averaging the closest readings on left and right
+ * Interpolates a missing reading by averaging neighboring readings
+ * - For middle hours: average left and right readings
+ * - For first hour (10:00): average two earliest readings
+ * - For last hour (17:00): average two latest readings
  */
 function interpolateReading(
   missingHour: number,
@@ -65,35 +68,70 @@ function interpolateReading(
     new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
   
+  if (sortedReadings.length < 2) {
+    return null; // Need at least 2 readings to interpolate
+  }
+  
   // Find closest reading on the left (earlier time)
   let leftReading: SensorData | null = null;
+  let leftIndex = -1;
   for (let i = sortedReadings.length - 1; i >= 0; i--) {
     const readingDate = new Date(sortedReadings[i].timestamp);
     if (readingDate.getHours() < missingHour) {
       leftReading = sortedReadings[i];
+      leftIndex = i;
       break;
     }
   }
   
   // Find closest reading on the right (later time)
   let rightReading: SensorData | null = null;
+  let rightIndex = -1;
   for (let i = 0; i < sortedReadings.length; i++) {
     const readingDate = new Date(sortedReadings[i].timestamp);
     if (readingDate.getHours() > missingHour) {
       rightReading = sortedReadings[i];
+      rightIndex = i;
       break;
     }
   }
   
-  // If we have both left and right readings, interpolate
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const interpolatedTimestamp = new Date(year, month - 1, day, missingHour, 0, 0);
+  
+  // Case 1: Missing first reading (10:00) - no readings before it
+  if (missingHour === 10 && !leftReading && rightReading && rightIndex >= 0) {
+    // Average the two earliest readings
+    if (sortedReadings.length >= 2) {
+      const value = (sortedReadings[0].value + sortedReadings[1].value) / 2;
+      return {
+        timestamp: interpolatedTimestamp,
+        value,
+        type: sortedReadings[0].type,
+      };
+    }
+  }
+  
+  // Case 2: Missing last reading (17:00) - no readings after it
+  if (missingHour === 17 && leftReading && !rightReading && leftIndex >= 0) {
+    // Average the two latest readings
+    if (sortedReadings.length >= 2) {
+      const lastIdx = sortedReadings.length - 1;
+      const value = (sortedReadings[lastIdx].value + sortedReadings[lastIdx - 1].value) / 2;
+      return {
+        timestamp: interpolatedTimestamp,
+        value,
+        type: sortedReadings[lastIdx].type,
+      };
+    }
+  }
+  
+  // Case 3: Middle reading - we have readings on both sides
   if (leftReading && rightReading) {
-    const [year, month, day] = dateKey.split('-').map(Number);
-    const interpolatedTimestamp = new Date(year, month - 1, day, missingHour, 0, 0);
-    
     return {
       timestamp: interpolatedTimestamp,
       value: (leftReading.value + rightReading.value) / 2,
-      type: leftReading.type, // Use the type from existing readings
+      type: leftReading.type,
     };
   }
   
