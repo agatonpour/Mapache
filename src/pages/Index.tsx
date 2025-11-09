@@ -14,6 +14,7 @@ import { DateRangePicker } from "@/components/DateRangePicker";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { fillMissingHourlyReadings } from "@/lib/interpolation-utils";
 
 export default function Index() {
   const { toast } = useToast();
@@ -114,7 +115,10 @@ export default function Index() {
             return readingDate >= startDate && readingDate < endDateLimit && isWithinTimeRange;
           });
           
-          return [sensorType, filteredReadings];
+          // Apply interpolation to fill in missing hourly readings
+          const interpolatedReadings = fillMissingHourlyReadings(filteredReadings);
+          
+          return [sensorType, interpolatedReadings];
         })
       ) as Record<SensorType, SensorData[]>;
       
