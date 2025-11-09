@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, ArrowLeft } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
+import { fillMissingHourlyReadings } from "@/lib/interpolation-utils";
 
 export default function Status() {
   const navigate = useNavigate();
@@ -95,7 +96,10 @@ export default function Status() {
             return readingDate >= startDate && readingDate < endDateLimit && isWithinTimeRange;
           });
           
-          return [sensorType, filteredReadings];
+          // Apply interpolation to fill in missing hourly readings
+          const interpolatedReadings = fillMissingHourlyReadings(filteredReadings);
+          
+          return [sensorType, interpolatedReadings];
         })
       ) as Record<StatusSensorType, SensorData[]>;
       
