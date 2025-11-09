@@ -86,6 +86,18 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
     
     console.log(`Found ${querySnapshot.size} status readings for date ${dateStr}`);
     
+    // Also fetch from the next day's document to get the last reading that belongs to this date
+    const nextDate = new Date(dateStr);
+    nextDate.setDate(nextDate.getDate() + 1);
+    const nextDateStr = nextDate.toISOString().split('T')[0];
+    
+    const nextDateDoc = doc(db, "crystal_cove", nextDateStr);
+    const nextReadingsCollectionRef = collection(nextDateDoc, "readings");
+    const nextQ = query(nextReadingsCollectionRef, orderBy("timestamp"));
+    const nextQuerySnapshot = await getDocs(nextQ);
+    
+    console.log(`Found ${nextQuerySnapshot.size} readings in next day (${nextDateStr}) to check`);
+    
     // Initialize the result object with empty arrays for each status sensor type
     const result: Record<StatusSensorType, SensorData[]> = {
       soc_percent: [],
@@ -95,10 +107,8 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
       solar_current_ma: []
     };
     
-    // Process each reading document
-    querySnapshot.forEach((doc) => {
-      const reading = doc.data() as FirestoreReading;
-      
+    // Helper function to process a reading
+    const processReading = (reading: FirestoreReading) => {
       // Convert timestamp to JavaScript Date
       const timestamp = typeof reading.timestamp === 'string' 
         ? new Date(reading.timestamp)
@@ -137,6 +147,29 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
         value: currentValue, 
         timestamp 
       });
+    };
+    
+    // Process each reading document from the requested date
+    querySnapshot.forEach((doc) => {
+      const reading = doc.data() as FirestoreReading;
+      processReading(reading);
+    });
+    
+    // Process readings from the next day that belong to the requested date
+    nextQuerySnapshot.forEach((doc) => {
+      const reading = doc.data() as FirestoreReading;
+      
+      // Convert timestamp to JavaScript Date
+      const timestamp = typeof reading.timestamp === 'string' 
+        ? new Date(reading.timestamp)
+        : reading.timestamp.toDate();
+      
+      // Check if this reading's date matches the requested date
+      const readingDateStr = timestamp.toISOString().split('T')[0];
+      if (readingDateStr === dateStr) {
+        console.log(`Found status reading from ${nextDateStr} document that belongs to ${dateStr}`);
+        processReading(reading);
+      }
     });
     
     return result;
