@@ -46,21 +46,26 @@ export function StatusSensorChart({
   // Get date transitions for reference lines (only for multi-day ranges)
   const dateTransitions = spansMultipleDays && !useTimeBased ? getDateTransitions(data) : [];
 
-  // Track displayed hours to prevent duplicates for single day view
-  const displayedHours = new Set<string>();
+  // Track displayed labels to prevent duplicates
+  const displayedLabels = new Set<string>();
   
   const formatUniqueXAxisTick = (timestamp: string): string => {
     if (spansMultipleDays && !useTimeBased) {
-      return formatDateTick(timestamp);
+      const dateLabel = formatDateTick(timestamp);
+      if (displayedLabels.has(dateLabel)) {
+        return '';
+      }
+      displayedLabels.add(dateLabel);
+      return dateLabel;
     }
     
     const hourString = formatXAxisTick(timestamp);
     
-    if (displayedHours.has(hourString)) {
+    if (displayedLabels.has(hourString)) {
       return '';
     }
     
-    displayedHours.add(hourString);
+    displayedLabels.add(hourString);
     return hourString;
   };
 
