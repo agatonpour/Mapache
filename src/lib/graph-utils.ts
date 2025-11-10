@@ -73,7 +73,7 @@ export function formatDateTick(timestamp: string): string {
   return format(date, 'MMM dd');
 }
 
-// Get date transitions for adding reference lines and last positions for date labels
+// Get date transitions for adding reference lines and center positions for date labels
 export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp: Date }>): Array<{ timestamp: string; date: string; centerTimestamp?: string }> {
   if (data.length === 0) return [];
   
@@ -93,37 +93,32 @@ export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp
   });
   
   // Create transitions between dates
-  let currentDate = data[0].rawTimestamp.toISOString().split('T')[0];
+  const dateKeys = Array.from(dateRanges.keys());
   
-  // Add last timestamps for each date range (aligned with last reading of each day)
-  dateRanges.forEach((range, dateKey) => {
-    // Use the last timestamp of the day instead of center
-    const lastTimestamp = range.timestamps[range.timestamps.length - 1];
+  // For each date, add center timestamp for label positioning
+  dateKeys.forEach((dateKey, index) => {
+    const range = dateRanges.get(dateKey)!;
+    const centerIndex = Math.floor(range.timestamps.length / 2);
+    const centerTimestamp = range.timestamps[centerIndex];
     
-    // Find if this is a transition point (not the first date)
-    if (dateKey !== currentDate) {
-      transitions.push({
-        timestamp: data[range.start].timestamp, // Transition point (first reading of new day)
-        date: dateKey,
-        centerTimestamp: lastTimestamp // Last reading of this day (for positioning date label)
-      });
+    // For the vertical line: use the last reading of the previous day (except for the first day)
+    let lineTimestamp: string;
+    if (index === 0) {
+      // First day: no line before it, use first timestamp as placeholder
+      lineTimestamp = data[0].timestamp;
+    } else {
+      // Get the last reading of the previous day
+      const prevDateKey = dateKeys[index - 1];
+      const prevRange = dateRanges.get(prevDateKey)!;
+      lineTimestamp = prevRange.timestamps[prevRange.timestamps.length - 1];
     }
-  });
-  
-  // For the first date, we need to add its last timestamp separately
-  const firstDateKey = data[0].rawTimestamp.toISOString().split('T')[0];
-  const firstDateRange = dateRanges.get(firstDateKey);
-  if (firstDateRange) {
-    // Use the last timestamp of the first day
-    const lastTimestamp = firstDateRange.timestamps[firstDateRange.timestamps.length - 1];
     
-    // Add the first date's last reading to the beginning
-    transitions.unshift({
-      timestamp: data[0].timestamp,
-      date: firstDateKey,
-      centerTimestamp: lastTimestamp
+    transitions.push({
+      timestamp: lineTimestamp, // Vertical line at last reading of previous day
+      date: dateKey,
+      centerTimestamp: centerTimestamp // Date label at center of current day
     });
-  }
+  });
   
   return transitions;
 }
