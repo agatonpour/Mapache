@@ -114,20 +114,14 @@ export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp
   const dateKeys = Array.from(dateRanges.keys());
   
   // For each date, add center timestamp for label positioning
+  // Start from second date for transitions (vertical lines)
   dateKeys.forEach((dateKey, index) => {
     const range = dateRanges.get(dateKey)!;
     const centerIndex = Math.floor(range.timestamps.length / 2);
     const centerTimestamp = range.timestamps[centerIndex];
     
-    if (index === 0) {
-      // First day: add entry but no vertical line (will be filtered out in chart component)
-      transitions.push({
-        timestamp: data[0].timestamp, 
-        date: dateKey,
-        centerTimestamp: centerTimestamp
-      });
-    } else {
-      // Get the last reading (highest hour) of the previous day for the vertical line
+    // Add transition with vertical line position only for dates after the first
+    if (index > 0) {
       const prevDateKey = dateKeys[index - 1];
       const prevRange = dateRanges.get(prevDateKey)!;
       const lineTimestamp = findLastReadingOfDay(prevRange);
@@ -136,6 +130,13 @@ export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp
         timestamp: lineTimestamp, // Vertical line at last reading of previous day
         date: dateKey,
         centerTimestamp: centerTimestamp // Date label at center of current day
+      });
+    } else {
+      // First date: only provide center for label, no vertical line
+      transitions.push({
+        timestamp: '', // Empty timestamp means no line will be drawn
+        date: dateKey,
+        centerTimestamp: centerTimestamp
       });
     }
   });
