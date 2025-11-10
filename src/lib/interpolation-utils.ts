@@ -99,31 +99,25 @@ function interpolateReading(
   const [year, month, day] = dateKey.split('-').map(Number);
   const interpolatedTimestamp = new Date(year, month - 1, day, missingHour, 0, 0);
   
-  // Case 1: Missing first reading (10:00) - no readings before it
-  if (missingHour === 10 && !leftReading && rightReading && rightIndex >= 0) {
-    // Average the two earliest readings
-    if (sortedReadings.length >= 2) {
-      const value = (sortedReadings[0].value + sortedReadings[1].value) / 2;
-      return {
-        timestamp: interpolatedTimestamp,
-        value,
-        type: sortedReadings[0].type,
-      };
-    }
+  // Case 1: No readings before this hour - use two earliest readings
+  if (!leftReading && sortedReadings.length >= 2) {
+    const value = (sortedReadings[0].value + sortedReadings[1].value) / 2;
+    return {
+      timestamp: interpolatedTimestamp,
+      value,
+      type: sortedReadings[0].type,
+    };
   }
   
-  // Case 2: Missing last reading (17:00) - no readings after it
-  if (missingHour === 17 && leftReading && !rightReading && leftIndex >= 0) {
-    // Average the two latest readings
-    if (sortedReadings.length >= 2) {
-      const lastIdx = sortedReadings.length - 1;
-      const value = (sortedReadings[lastIdx].value + sortedReadings[lastIdx - 1].value) / 2;
-      return {
-        timestamp: interpolatedTimestamp,
-        value,
-        type: sortedReadings[lastIdx].type,
-      };
-    }
+  // Case 2: No readings after this hour - use two latest readings
+  if (!rightReading && sortedReadings.length >= 2) {
+    const lastIdx = sortedReadings.length - 1;
+    const value = (sortedReadings[lastIdx].value + sortedReadings[lastIdx - 1].value) / 2;
+    return {
+      timestamp: interpolatedTimestamp,
+      value,
+      type: sortedReadings[lastIdx].type,
+    };
   }
   
   // Case 3: Middle reading - we have readings on both sides
