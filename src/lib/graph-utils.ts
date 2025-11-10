@@ -78,19 +78,37 @@ export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp
   if (data.length === 0) return [];
   
   const transitions: Array<{ timestamp: string; date: string; centerTimestamp?: string }> = [];
-  const dateRanges = new Map<string, { start: number; end: number; timestamps: string[] }>();
+  const dateRanges = new Map<string, { start: number; end: number; timestamps: string[]; rawTimestamps: Date[] }>();
   
   // Group data by date and find ranges
   data.forEach((item, index) => {
     const dateKey = item.rawTimestamp.toISOString().split('T')[0];
     if (!dateRanges.has(dateKey)) {
-      dateRanges.set(dateKey, { start: index, end: index, timestamps: [item.timestamp] });
+      dateRanges.set(dateKey, { start: index, end: index, timestamps: [item.timestamp], rawTimestamps: [item.rawTimestamp] });
     } else {
       const range = dateRanges.get(dateKey)!;
       range.end = index;
       range.timestamps.push(item.timestamp);
+      range.rawTimestamps.push(item.rawTimestamp);
     }
   });
+  
+  // Helper function to find the last reading of a day (the one with the highest hour)
+  const findLastReadingOfDay = (range: { timestamps: string[]; rawTimestamps: Date[] }): string => {
+    // Find the reading with the maximum hour value
+    let maxHour = -1;
+    let lastTimestamp = range.timestamps[range.timestamps.length - 1];
+    
+    range.rawTimestamps.forEach((rawTs, idx) => {
+      const hour = rawTs.getHours();
+      if (hour > maxHour) {
+        maxHour = hour;
+        lastTimestamp = range.timestamps[idx];
+      }
+    });
+    
+    return lastTimestamp;
+  };
   
   // Create transitions between dates
   const dateKeys = Array.from(dateRanges.keys());
@@ -101,16 +119,16 @@ export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp
     const centerIndex = Math.floor(range.timestamps.length / 2);
     const centerTimestamp = range.timestamps[centerIndex];
     
-    // For the vertical line: use the last reading of the previous day (except for the first day)
+    // For the vertical line: use the last reading (highest hour) of the previous day
     let lineTimestamp: string;
     if (index === 0) {
       // First day: no line before it, use first timestamp as placeholder
       lineTimestamp = data[0].timestamp;
     } else {
-      // Get the last reading of the previous day
+      // Get the last reading (highest hour) of the previous day
       const prevDateKey = dateKeys[index - 1];
       const prevRange = dateRanges.get(prevDateKey)!;
-      lineTimestamp = prevRange.timestamps[prevRange.timestamps.length - 1];
+      lineTimestamp = findLastReadingOfDay(prevRange);
     }
     
     transitions.push({
