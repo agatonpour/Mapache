@@ -73,7 +73,7 @@ export function formatDateTick(timestamp: string): string {
   return format(date, 'MMM dd');
 }
 
-// Get date transitions for adding reference lines and center positions for date labels
+// Get date transitions for adding reference lines and last positions for date labels
 export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp: Date }>): Array<{ timestamp: string; date: string; centerTimestamp?: string }> {
   if (data.length === 0) return [];
   
@@ -95,33 +95,33 @@ export function getDateTransitions(data: Array<{ timestamp: string; rawTimestamp
   // Create transitions between dates
   let currentDate = data[0].rawTimestamp.toISOString().split('T')[0];
   
-  // Add center timestamps for each date range
+  // Add last timestamps for each date range (aligned with last reading of each day)
   dateRanges.forEach((range, dateKey) => {
-    const centerIndex = Math.floor(range.timestamps.length / 2);
-    const centerTimestamp = range.timestamps[centerIndex];
+    // Use the last timestamp of the day instead of center
+    const lastTimestamp = range.timestamps[range.timestamps.length - 1];
     
     // Find if this is a transition point (not the first date)
     if (dateKey !== currentDate) {
       transitions.push({
-        timestamp: data[range.start].timestamp, // Transition point
+        timestamp: data[range.start].timestamp, // Transition point (first reading of new day)
         date: dateKey,
-        centerTimestamp: centerTimestamp // Center of this date's range
+        centerTimestamp: lastTimestamp // Last reading of this day (for positioning date label)
       });
     }
   });
   
-  // For the first date, we need to add its center timestamp separately
+  // For the first date, we need to add its last timestamp separately
   const firstDateKey = data[0].rawTimestamp.toISOString().split('T')[0];
   const firstDateRange = dateRanges.get(firstDateKey);
   if (firstDateRange) {
-    const centerIndex = Math.floor(firstDateRange.timestamps.length / 2);
-    const centerTimestamp = firstDateRange.timestamps[centerIndex];
+    // Use the last timestamp of the first day
+    const lastTimestamp = firstDateRange.timestamps[firstDateRange.timestamps.length - 1];
     
-    // Add the first date's center to the beginning
+    // Add the first date's last reading to the beginning
     transitions.unshift({
       timestamp: data[0].timestamp,
       date: firstDateKey,
-      centerTimestamp: centerTimestamp
+      centerTimestamp: lastTimestamp
     });
   }
   
