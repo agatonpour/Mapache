@@ -151,8 +151,17 @@ export function fillMissingHourlyReadings(readings: SensorData[]): SensorData[] 
     // Add existing readings
     allReadings.push(...dayReadings);
     
+    // Determine if this is today and what the current hour is
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const isToday = dateKey === todayKey;
+    const currentHour = now.getHours();
+    
     // Check for missing hours (10-17) and interpolate
-    for (let hour = 10; hour <= 17; hour++) {
+    // For today, only interpolate up to the current hour
+    const maxHour = isToday ? Math.min(17, currentHour) : 17;
+    
+    for (let hour = 10; hour <= maxHour; hour++) {
       if (!presentHours.has(hour)) {
         const interpolated = interpolateReading(hour, dateKey, dayReadings);
         if (interpolated) {
