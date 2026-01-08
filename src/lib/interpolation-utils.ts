@@ -147,21 +147,31 @@ export function fillMissingHourlyReadings(readings: SensorData[]): SensorData[] 
   Object.keys(groupedByDate).forEach(dateKey => {
     const dayReadings = groupedByDate[dateKey];
     const presentHours = findPresentHours(dayReadings);
-    
+
     // Add existing readings
     allReadings.push(...dayReadings);
-    
+
+    // If there are no "expected window" readings at all, don't fabricate a whole day
+    // (prevents creating daytime points from unrelated midnight/early-morning samples).
+    if (presentHours.size === 0) {
+      return;
+    }
+
+    // Determine interpolation window based on actually-present expected hours
+    const minPresentHour = Math.min(...Array.from(presentHours));
+    const maxPresentHourRaw = Math.max(...Array.from(presentHours));
+
     // Determine if this is today and what the current hour is
     const now = new Date();
     const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     const isToday = dateKey === todayKey;
     const currentHour = now.getHours();
-    
-    // Check for missing hours (10-17) and interpolate
-    // For today, only interpolate up to the current hour
-    const maxHour = isToday ? Math.min(17, currentHour) : 17;
-    
-    for (let hour = 10; hour <= maxHour; hour++) {
+
+    // For today, never interpolate beyond the current hour; never beyond 17.
+    const maxPresentHour = isToday ? Math.min(17, currentHour, maxPresentHourRaw) : Math.min(17, maxPresentHourRaw);
+
+    // Check for missing hours in the interpolatable window and interpolate
+    for (let hour = minPresentHour; hour <= maxPresentHour; hour++) {
       if (!presentHours.has(hour)) {
         const interpolated = interpolateReading(hour, dateKey, dayReadings);
         if (interpolated) {
