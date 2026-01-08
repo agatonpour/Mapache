@@ -100,9 +100,9 @@ export default function Index() {
       // Filter data to make sure it falls within selected date range
       const filteredData = Object.fromEntries(
         Object.entries(data).map(([sensorType, readings]) => {
-          // Add one day to endDate to include the entire end day
-          const endDateLimit = new Date(endDate);
-          endDateLimit.setDate(endDateLimit.getDate() + 1);
+          // Create date boundaries at start and end of days (midnight)
+          const startDateStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0);
+          const endDateEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 23, 59, 59);
           
           const filteredReadings = readings.filter(reading => {
             const readingDate = new Date(reading.timestamp);
@@ -112,7 +112,7 @@ export default function Index() {
             // Only include readings between 10:00 and 17:05 (10:00-17:05)
             const isWithinTimeRange = hour >= 10 && (hour < 17 || (hour === 17 && minutes <= 5));
             
-            return readingDate >= startDate && readingDate < endDateLimit && isWithinTimeRange;
+            return readingDate >= startDateStart && readingDate <= endDateEnd && isWithinTimeRange;
           });
           
           // Apply interpolation to fill in missing hourly readings
