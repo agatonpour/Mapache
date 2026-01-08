@@ -106,13 +106,7 @@ export default function Index() {
           
           const filteredReadings = readings.filter(reading => {
             const readingDate = new Date(reading.timestamp);
-            const hour = readingDate.getHours();
-            const minutes = readingDate.getMinutes();
-            
-            // Only include readings between 10:00 and 17:05 (10:00-17:05)
-            const isWithinTimeRange = hour >= 10 && (hour < 17 || (hour === 17 && minutes <= 5));
-            
-            return readingDate >= startDateStart && readingDate <= endDateEnd && isWithinTimeRange;
+            return readingDate >= startDateStart && readingDate <= endDateEnd;
           });
           
           // Apply interpolation to fill in missing hourly readings
