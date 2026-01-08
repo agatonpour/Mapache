@@ -9,11 +9,16 @@ import {
 import { db } from "../firebase";
 import { SensorData, StatusSensorType } from "./mock-data";
 import { FirestoreReading } from "./firestore-service";
+import {
+  getDateStringInAppTimezone,
+  addDaysToDateString
+} from "./timezone-utils";
 
 // Function to fetch status readings for a specific date range
+// Note: startDateStr and endDateStr are in YYYY-MM-DD format and represent dates in America/Los_Angeles timezone
 export async function fetchStatusReadingsForDateRange(startDateStr: string, endDateStr: string): Promise<Record<StatusSensorType, SensorData[]>> {
   try {
-    console.log(`Fetching status readings from ${startDateStr} to ${endDateStr}`);
+    console.log(`Fetching status readings from ${startDateStr} to ${endDateStr} (America/Los_Angeles timezone)`);
     
     // Initialize the result object with empty arrays for each status sensor type
     const result: Record<StatusSensorType, SensorData[]> = {
@@ -24,18 +29,11 @@ export async function fetchStatusReadingsForDateRange(startDateStr: string, endD
       solar_current_ma: []
     };
     
-    // Convert string dates to Date objects
-    const startDate = new Date(startDateStr);
-    const endDate = new Date(endDateStr);
-    endDate.setHours(23, 59, 59, 999); // Set to end of day
-    
-    // Iterate through each day in the range
-    const currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-      const dateStr = currentDate.toISOString().split('T')[0]; // Format: YYYY-MM-DD
-      
+    // Iterate through each day in the range using date strings
+    let currentDateStr = startDateStr;
+    while (currentDateStr <= endDateStr) {
       // Get readings for this specific date
-      const dateReadings = await fetchStatusReadingsForDate(dateStr);
+      const dateReadings = await fetchStatusReadingsForDate(currentDateStr);
       
       // Merge the readings into our result
       Object.keys(dateReadings).forEach((key) => {
@@ -44,7 +42,7 @@ export async function fetchStatusReadingsForDateRange(startDateStr: string, endD
       });
       
       // Move to next day
-      currentDate.setDate(currentDate.getDate() + 1);
+      currentDateStr = addDaysToDateString(currentDateStr, 1);
     }
     
     // Sort all readings by timestamp
@@ -68,9 +66,10 @@ export async function fetchStatusReadingsForDateRange(startDateStr: string, endD
 }
 
 // Function to fetch status readings from a specific date
+// Note: dateStr is in YYYY-MM-DD format and represents a date in America/Los_Angeles timezone
 export async function fetchStatusReadingsForDate(dateStr: string): Promise<Record<StatusSensorType, SensorData[]>> {
   try {
-    console.log(`Fetching status readings for date: ${dateStr}`);
+    console.log(`Fetching status readings for date: ${dateStr} (America/Los_Angeles timezone)`);
     
     // Get reference to the specific date document
     const dateDoc = doc(db, "crystal_cove", dateStr);
@@ -86,10 +85,8 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
     
     console.log(`Found ${querySnapshot.size} status readings for date ${dateStr}`);
     
-    // Also fetch from the next day's document to get the last reading that belongs to this date
-    const nextDate = new Date(dateStr);
-    nextDate.setDate(nextDate.getDate() + 1);
-    const nextDateStr = nextDate.toISOString().split('T')[0];
+    // Also fetch from the next day's document to get readings that might belong to this date
+    const nextDateStr = addDaysToDateString(dateStr, 1);
     
     const nextDateDoc = doc(db, "crystal_cove", nextDateStr);
     const nextReadingsCollectionRef = collection(nextDateDoc, "readings");
@@ -155,7 +152,7 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
       processReading(reading);
     });
     
-    // Process readings from the next day that belong to the requested date
+    // Process readings from the next day that belong to the requested date (in app timezone)
     nextQuerySnapshot.forEach((doc) => {
       const reading = doc.data() as FirestoreReading;
       
@@ -164,8 +161,8 @@ export async function fetchStatusReadingsForDate(dateStr: string): Promise<Recor
         ? new Date(reading.timestamp)
         : reading.timestamp.toDate();
       
-      // Check if this reading's date matches the requested date
-      const readingDateStr = timestamp.toISOString().split('T')[0];
+      // Check if this reading's date matches the requested date in app timezone
+      const readingDateStr = getDateStringInAppTimezone(timestamp);
       if (readingDateStr === dateStr) {
         console.log(`Found status reading from ${nextDateStr} document that belongs to ${dateStr}`);
         processReading(reading);
