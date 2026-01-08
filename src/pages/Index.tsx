@@ -15,6 +15,14 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { fillMissingHourlyReadings } from "@/lib/interpolation-utils";
+import {
+  getTodayInAppTimezone,
+  getHourInAppTimezone,
+  getMinutesInAppTimezone,
+  getDateStringInAppTimezone,
+  parseAppDateString,
+  toAppTimezoneDate
+} from "@/lib/timezone-utils";
 
 export default function Index() {
   const { toast } = useToast();
@@ -35,25 +43,23 @@ export default function Index() {
     timestamp: new Date()
   });
   
-  // Date range state - initialize from URL params or today
-  const today = new Date();
+  // Date range state - initialize from URL params or today (in app timezone)
+  const todayStr = getTodayInAppTimezone();
   const [startDate, setStartDate] = useState<Date>(() => {
     const urlStart = searchParams.get('startDate');
     if (urlStart) {
-      // Parse date string as local date to avoid timezone issues
-      const [year, month, day] = urlStart.split('-').map(Number);
-      return new Date(year, month - 1, day); // month is 0-indexed
+      // Parse date string as a date in app timezone
+      return parseAppDateString(urlStart);
     }
-    return today;
+    return parseAppDateString(todayStr);
   });
   const [endDate, setEndDate] = useState<Date>(() => {
     const urlEnd = searchParams.get('endDate');
     if (urlEnd) {
-      // Parse date string as local date to avoid timezone issues
-      const [year, month, day] = urlEnd.split('-').map(Number);
-      return new Date(year, month - 1, day); // month is 0-indexed
+      // Parse date string as a date in app timezone
+      return parseAppDateString(urlEnd);
     }
-    return today;
+    return parseAppDateString(todayStr);
   });
   
   // Store sensor data
@@ -66,10 +72,10 @@ export default function Index() {
     setStartDate(newStartDate);
     setEndDate(newEndDate);
     
-    // Update URL params using local date formatting
+    // Update URL params using app timezone date formatting
     const newSearchParams = new URLSearchParams(searchParams);
-    const startDateStr = `${newStartDate.getFullYear()}-${String(newStartDate.getMonth() + 1).padStart(2, '0')}-${String(newStartDate.getDate()).padStart(2, '0')}`;
-    const endDateStr = `${newEndDate.getFullYear()}-${String(newEndDate.getMonth() + 1).padStart(2, '0')}-${String(newEndDate.getDate()).padStart(2, '0')}`;
+    const startDateStr = getDateStringInAppTimezone(newStartDate);
+    const endDateStr = getDateStringInAppTimezone(newEndDate);
     newSearchParams.set('startDate', startDateStr);
     newSearchParams.set('endDate', endDateStr);
     setSearchParams(newSearchParams);
@@ -85,11 +91,11 @@ export default function Index() {
     setLoading(true);
     
     try {
-      // Format dates as YYYY-MM-DD using local date formatting
-      const startDateStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, '0')}-${String(startDate.getDate()).padStart(2, '0')}`;
-      const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+      // Format dates as YYYY-MM-DD in app timezone
+      const startDateStr = getDateStringInAppTimezone(startDate);
+      const endDateStr = getDateStringInAppTimezone(endDate);
       
-      console.log(`Fetching data from ${startDateStr} to ${endDateStr}`);
+      console.log(`Fetching data from ${startDateStr} to ${endDateStr} (America/Los_Angeles timezone)`);
       
       // Fetch both sensor data and always get latest status data
       const [data, latestStatus] = await Promise.all([
@@ -97,22 +103,22 @@ export default function Index() {
         fetchLatestStatusData()
       ]);
       
-      // Filter data to make sure it falls within selected date range
+      // Filter data to make sure it falls within selected date range and time window
       const filteredData = Object.fromEntries(
         Object.entries(data).map(([sensorType, readings]) => {
-          // Add one day to endDate to include the entire end day
-          const endDateLimit = new Date(endDate);
-          endDateLimit.setDate(endDateLimit.getDate() + 1);
-          
           const filteredReadings = readings.filter(reading => {
             const readingDate = new Date(reading.timestamp);
-            const hour = readingDate.getHours();
-            const minutes = readingDate.getMinutes();
+            const readingDateStr = getDateStringInAppTimezone(readingDate);
+            const hour = getHourInAppTimezone(readingDate);
+            const minutes = getMinutesInAppTimezone(readingDate);
             
-            // Only include readings between 10:00 and 17:05 (10:00-17:05)
+            // Check if reading is within the date range
+            const isWithinDateRange = readingDateStr >= startDateStr && readingDateStr <= endDateStr;
+            
+            // Only include readings between 10:00 and 17:05 (in app timezone)
             const isWithinTimeRange = hour >= 10 && (hour < 17 || (hour === 17 && minutes <= 5));
             
-            return readingDate >= startDate && readingDate < endDateLimit && isWithinTimeRange;
+            return isWithinDateRange && isWithinTimeRange;
           });
           
           // Apply interpolation to fill in missing hourly readings
