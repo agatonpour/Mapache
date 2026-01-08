@@ -38,32 +38,28 @@ export function SensorChart({
   // Get date transitions for reference lines (only for multi-day ranges)
   const dateTransitions = spansMultipleDays && !useTimeBased ? getDateTransitions(data) : [];
 
-  // Create formatter function with fresh Set for each render
-  const createTickFormatter = () => {
-    const displayedLabels = new Set<string>();
-    
-    return (timestamp: string): string => {
-      if (spansMultipleDays && !useTimeBased) {
-        const dateLabel = formatDateTick(timestamp);
-        if (displayedLabels.has(dateLabel)) {
-          return '';
-        }
-        displayedLabels.add(dateLabel);
-        return dateLabel;
-      }
-      
-      const hourString = formatXAxisTick(timestamp);
-      
-      if (displayedLabels.has(hourString)) {
+  // Track displayed labels to prevent duplicates
+  const displayedLabels = new Set<string>();
+  
+  const formatUniqueXAxisTick = (timestamp: string): string => {
+    if (spansMultipleDays && !useTimeBased) {
+      const dateLabel = formatDateTick(timestamp);
+      if (displayedLabels.has(dateLabel)) {
         return '';
       }
-      
-      displayedLabels.add(hourString);
-      return hourString;
-    };
+      displayedLabels.add(dateLabel);
+      return dateLabel;
+    }
+    
+    const hourString = formatXAxisTick(timestamp);
+    
+    if (displayedLabels.has(hourString)) {
+      return '';
+    }
+    
+    displayedLabels.add(hourString);
+    return hourString;
   };
-  
-  const tickFormatter = createTickFormatter();
 
   return (
     <ResponsiveContainer>
@@ -90,7 +86,7 @@ export function SensorChart({
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={tickFormatter}
+          tickFormatter={formatUniqueXAxisTick}
           height={30}
           interval={spansMultipleDays && !useTimeBased ? 0 : "preserveStartEnd"}
           ticks={spansMultipleDays && !useTimeBased ? dateTransitions.map(t => t.centerTimestamp).filter(Boolean) : undefined}
